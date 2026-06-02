@@ -1,17 +1,14 @@
 /**
  * ============================================================================
- * HOGWARTS DUEL - BÜYÜ FİZİĞİ & PROJEKTİL / EFEKT YÖNETİCİSİ (2. AŞAMA)
+ * HOGWARTS DUEL - BÜYÜ FİZİĞİ & PROJEKTİL / EFEKT YÖNETİCİSİ (YENİ SÜRÜM)
  * ============================================================================
  * Bu modül; uçan mermi büyüleri, yer hedefli patlamaları (Confringo),
  * ulti büyü çarpışmalarını (Priori Incantatem), alev menzillerini ve hasar
  * sayıları gibi uçan yazıları yönetir.
  * 
- * 2. Aşama Güncellemeleri:
- * - Confringo düz uçan mermiden yer hedefli 1.2s gecikmeli alan büyüsüne dönüştürüldü.
- * - Zıplayarak dikey düzlemde kaçınma (dodge) kontrolü eklendi.
- * - Sıradan büyü mermi hızları tepki süresini artırmak için düşürüldü.
- * - Incendio alevinin maksimum erişim menzili 500px ile sınırlandırıldı.
- * - Priori Incantatem sadece iki nihai büyü (Avada ve Expelliarmus) çarpışınca tetiklenecek şekilde ayarlandı.
+ * Görsel Geliştirmeler:
+ * - Avada Kedavra için yeşil dallanan (branching) prösedürel yıldırımlar eklendi.
+ * - Expelliarmus mermisi için kırmızı kırıklı şimşek kuyrukları entegre edildi.
  */
 
 import { Engine, Vector2, ParticleFactory, particles, EngineParticle } from './engine.js';
@@ -49,7 +46,7 @@ class FloatingText {
 }
 
 /**
- * Madde 2: Yer Hedefli ve 1.2 Saniye Gecikmeli Confringo Alan Etkisi Sınıfı
+ * Yer Hedefli ve 1.2 Saniye Gecikmeli Confringo Alan Etkisi Sınıfı
  */
 export class ConfringoArea {
     /**
@@ -62,7 +59,7 @@ export class ConfringoArea {
         this.y = 600; // Zemin yüksekliği (FLOOR_Y)
         this.game = game;
         this.owner = owner;
-        this.maxLife = 1.2; // Madde 2: Rakibin kaçabilmesi için tam 1.2 saniye gecikme
+        this.maxLife = 1.2; // Rakibin kaçabilmesi için tam 1.2 saniye gecikme
         this.life = this.maxLife;
         this.exploded = false;
     }
@@ -90,7 +87,7 @@ export class ConfringoArea {
         this.game.spells.addEffect(new ExplosionEffect(this.x, this.y - 120, this.game));
         ParticleFactory.spawnFireExplosion(this.x, this.y - 120, 25);
 
-        // Madde 2 & Madde 4: Rakip patlama menzili (150px) içindeyse ve havaya zıplamadıysa hasar almalı
+        // Rakip patlama menzili (150px) içindeyse ve havaya zıplamadıysa hasar almalı
         if (dist < 150) {
             // Karakter havaya sıçradıysa (y < 460) hasardan tamamen kurtulur (Dodge)
             if (target.y >= 460) {
@@ -211,7 +208,6 @@ export class Projectile {
             }
         }
         else if (this.type === 'expelliarmus') {
-            // Morgan Ultisi kalkanla engellenebilir, engellenmezse 3.5s sersemletir
             if (target.shieldActive) {
                 this.game.audio.playLightning();
                 ParticleFactory.spawnShieldDeflect(this.x, this.y, this.vx > 0 ? 1 : -1, 20);
@@ -229,6 +225,7 @@ export class Projectile {
 
     /**
      * Projektil büyü görsellerinin çizimi.
+     * Expelliarmus için arkasında kırmızı/pembe elektrik kırıkları çizer.
      */
     draw(ctx) {
         let img = this.game.assets.images.sectumsempra;
@@ -245,6 +242,30 @@ export class Projectile {
             img = this.game.assets.images.sectumsempra;
         } else if (this.type === 'expelliarmus') {
             img = this.game.assets.images.expelliarmus;
+
+            // --- EXPELLIARMUS ULTI MERMİSİ İÇİN KIRMIZI ŞİMŞEK KUYRUKLARI ---
+            ctx.save();
+            ctx.strokeStyle = '#ff0033'; // Parlak kırmızı elektrik
+            ctx.shadowColor = '#ff0055';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2 + Math.random() * 2;
+            
+            const trailDirection = this.vx > 0 ? -1 : 1;
+            // Arkaya doğru uzanan 3 kırıklı şimşek hattı oluştur
+            for (let t = 0; t < 3; t++) {
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                let curX = this.x;
+                let curY = this.y;
+                const segments = 5;
+                for (let s = 1; s <= segments; s++) {
+                    curX += trailDirection * (25 + Math.random() * 15);
+                    curY += (Math.random() * 2 - 1) * 18;
+                    ctx.lineTo(curX, curY);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
         }
 
         Engine.drawRotatedImage(ctx, img, this.x, this.y, this.width, this.height, 0, 1.0, isFlipped, 0.5, 0.5);
@@ -311,6 +332,7 @@ class BloodOverlay {
 
 /**
  * Avada Kedavra Ölüm Işını Efekti
+ * Tamamen prösedürel yeşil dallanan yıldırımlarla çizilecek şekilde güncellendi.
  */
 class AvadaKedavraBeam {
     constructor(startX, startY, endX, endY, game) {
@@ -327,18 +349,64 @@ class AvadaKedavraBeam {
         this.life -= dt;
     }
 
+    /**
+     * Dallanan yeşil yıldırımları çizen rekürsif fonksiyon.
+     */
+    drawLightningBranch(ctx, sx, sy, ex, ey, depth, maxDepth) {
+        if (depth > maxDepth) return;
+        
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        
+        const dist = Vector2.distance(sx, sy, ex, ey);
+        const segments = Math.max(5, Math.floor(dist / 30));
+        let lastX = sx;
+        let lastY = sy;
+        
+        ctx.strokeStyle = '#00ff33'; // Neon yeşili elektrik
+        ctx.lineWidth = (4 - depth) * (this.life / this.maxLife); // Derinliğe göre incelir
+        ctx.shadowColor = '#00ff33';
+        ctx.shadowBlur = 15;
+
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            let px = sx + (ex - sx) * t;
+            let py = sy + (ey - sy) * t;
+            
+            if (i < segments) {
+                // Hattın doğrultusuna dik eksende kırıklı pürüzler ekle
+                const angle = Vector2.angleBetween(sx, sy, ex, ey) + Math.PI / 2;
+                const jitter = (Math.random() * 2 - 1) * (18 / (depth + 1));
+                px += Math.cos(angle) * jitter;
+                py += Math.sin(angle) * jitter;
+            }
+            
+            ctx.lineTo(px, py);
+            
+            // Rastgele yan yıldırımlar (branches) fırlat
+            if (Math.random() < 0.16 && depth < maxDepth && i < segments) {
+                const branchAngle = Vector2.angleBetween(lastX, lastY, px, py) + (Math.random() * 0.9 - 0.45);
+                const branchLength = dist * (1 - t) * 0.35;
+                const bx = px + Math.cos(branchAngle) * branchLength;
+                const by = py + Math.sin(branchAngle) * branchLength;
+                this.drawLightningBranch(ctx, px, py, bx, by, depth + 1, maxDepth);
+            }
+            
+            lastX = px;
+            lastY = py;
+        }
+        ctx.stroke();
+    }
+
     draw(ctx) {
         if (this.life <= 0) return;
 
         ctx.save();
         ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
         
-        ctx.shadowColor = '#00ff33';
-        ctx.shadowBlur = 30;
-
-        const jitterY = 1.0 + (Math.random() * 0.4 - 0.2);
-        Engine.drawStretchedBeam(ctx, this.game.assets.images.avadakedavra, this.startX, this.startY, this.endX, this.endY, 130, this.life / this.maxLife, jitterY);
-
+        // 3 kollu dallanan ana yıldırımı çiz
+        this.drawLightningBranch(ctx, this.startX, this.startY, this.endX, this.endY, 0, 3);
+        
         ctx.restore();
     }
 }
@@ -482,10 +550,15 @@ export class SpellManager {
                         target.takeDamage(16 * dt, false); 
                         caster.ultCharge += 15 * dt;      
                         target.vx *= 0.5; // Crucio altındaki kurban yavaşlar
+
+                        // Morgan hasar alırken acı çığlığı (.mp3) tetiklenir
+                        if (target.type === 'morgan' && Math.random() < 1.5 * dt) {
+                            this.game.audio.playMorganScreamSound();
+                        }
                     }
                 }
             } 
-            // Madde 3: Morgan Incendio alev fırtınası (Menzil: Maksimum 500px ile sınırlandırıldı!)
+            // Morgan Incendio alev fırtınası (Menzil: Maksimum 500px ile sınırlandırıldı!)
             else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
                 if (dist < 500) { // Limitlendi
                     if (target.shieldActive) {
@@ -558,7 +631,7 @@ export class SpellManager {
                     ParticleFactory.spawnCrucioPain(targetX, targetY, 2);
                 }
             } 
-            // Madde 3: Morgan Incendio Alevinin görsel çizim menzili maksimum 500px ile sınırlandırıldı
+            // Morgan Incendio Alevinin görsel çizim menzili maksimum 500px ile sınırlandırıldı
             else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
                 const flameImg = this.game.assets.images[`incendio${Math.floor(Date.now() / 80) % 3 + 1}`];
                 
