@@ -650,7 +650,6 @@ class GameOrchestrator {
 
 // Oyun motoru nesnesini başlat ve dışa aktar
 export const game = new GameOrchestrator();
-
 // --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
 export function castSpell(caster, target, index) {
     if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain') return;
@@ -661,7 +660,8 @@ export function castSpell(caster, target, index) {
                 caster.mana -= 25;
                 caster.say("Confringo!");
                 let dir = caster.facingRight ? 1 : -1;
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 14, caster, 'confringo', game));
+                // DÜZELTME: Büyünün çıkış yüksekliği dizden (140) asaya (210) kaydırıldı
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 14, caster, 'confringo', game));
             }
         } 
         else if (index === 2) { // Crucio
@@ -682,10 +682,11 @@ export function castSpell(caster, target, index) {
                 if (target.isDucking) isHit = false;
                 if (target.y < 600 - 50) isHit = false; // Zıpladıysa kurtulur
 
+                // DÜZELTME: Avada Kedavra ışını asanın yüksekliğine (y - 210) hizalandı
                 const startX = caster.x + dir * 60;
-                const startY = caster.y - 140;
+                const startY = caster.y - 210;
                 const endX = isHit ? target.x : (caster.facingRight ? 1280 : 0);
-                const endY = caster.y - 140;
+                const endY = isHit ? target.y - 210 : caster.y - 210;
 
                 game.spells.triggerAvadaBeam(startX, startY, endX, endY);
 
@@ -708,7 +709,8 @@ export function castSpell(caster, target, index) {
                 caster.mana -= 20;
                 caster.say("Sectumsempra!");
                 let dir = caster.facingRight ? 1 : -1;
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 21, caster, 'sectumsempra', game));
+                // DÜZELTME: Çıkış yüksekliği asaya (y - 210) hizalandı
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 21, caster, 'sectumsempra', game));
             }
         }
         else if (index === 3) { // Expelliarmus
@@ -716,12 +718,12 @@ export function castSpell(caster, target, index) {
                 caster.ultCharge = 0;
                 caster.say("Expelliarmus!");
                 let dir = caster.facingRight ? 1 : -1;
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 25, caster, 'expelliarmus', game));
+                // DÜZELTME: Çıkış yüksekliği asaya (y - 210) hizalandı
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 25, caster, 'expelliarmus', game));
             }
         }
     }
 }
-
 // Modül dışındaki input.js veya ai.js gibi scriptlerin window'dan bu fonksiyona erişebilmesini sağla (ES6 kısıtlamasını aşmak için)
 window.castSpell = castSpell;
 
