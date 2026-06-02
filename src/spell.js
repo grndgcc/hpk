@@ -245,30 +245,19 @@ export class SpellManager {
     addFloatingText(text, x, y, color) {
         this.floatingTexts.push(new FloatingText(text, x, y, color));
     }
+update(dt, p1, p2) {
+        // 1. Havada süzülen mermileri güncelle (KORUNACAK MEVCUT KOD)
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const proj = this.projectiles[i];
+            const target = (proj.owner === p1) ? p2 : p1;
+            proj.update(dt, target);
 
-    update(dt, p1, p2) {
-        // ... (Mevcut mermi ve efekt güncellemeleri) ...
-
-        // <-- EKLENDİ: Yazıları güncelleme döngüsü
-        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-            const ft = this.floatingTexts[i];
-            ft.update(dt);
-            if (ft.life <= 0) {
-                this.floatingTexts.splice(i, 1);
+            if (!proj.active) {
+                this.projectiles.splice(i, 1);
             }
         }
-    }
 
-    draw(ctx) {
-        this.effects.forEach(eff => eff.draw(ctx));
-        this.projectiles.forEach(proj => proj.draw(ctx));
-        this.drawContinuousChannels(ctx);
-        
-        // <-- EKLENDİ: Yazıları çizdirme döngüsü
-        this.floatingTexts.forEach(ft => ft.draw(ctx));
-    }
-}
-
+        // 2. Alan ve patlama efektlerini güncelle (SORDUĞUNUZ KOD - KESİNLİKLE KORUNACAK)
         for (let i = this.effects.length - 1; i >= 0; i--) {
             const eff = this.effects[i];
             eff.update(dt);
@@ -277,36 +266,81 @@ export class SpellManager {
                 this.effects.splice(i, 1);
             }
         }
-// --- EKLENTİ 1: BÜYÜ ÇARPIŞMASI (PRIORI INCANTATEM) ---
-        // Havada çarpışan rakip büyü mermilerini tespit edip patlatır
+
+        // --- EKLENTİ 1: BÜYÜ ÇARPIŞMASI (PRIORI INCANTATEM) ---
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             for (let j = i - 1; j >= 0; j--) {
                 const projA = this.projectiles[i];
                 const projB = this.projectiles[j];
 
-                // Büyüler aktifse ve farklı kişilere aitse çarpışma kontrolü yap
                 if (projA.active && projB.active && projA.owner !== projB.owner) {
                     const distanceX = Math.abs(projA.x - projB.x);
                     const distanceY = Math.abs(projA.y - projB.y);
 
-                    // Büyüler havada birbirine çok yaklaştıysa çarpışma gerçekleşir
                     if (distanceX < 45 && distanceY < 35) {
                         projA.active = false;
                         projB.active = false;
 
-                        // Çarpışma noktasında patlama efekti ve ekran sarsıntısı tetikle
                         const clashX = (projA.x + projB.x) / 2;
                         const clashY = (projA.y + projB.y) / 2;
 
                         this.game.triggerScreenShake(8, 0.2);
                         this.game.audio.playExplosion();
-                        
-                        // Havaya parıltılar ve patlama halkası saç
                         ParticleFactory.spawnFireExplosion(clashX, clashY, 15);
                     }
                 }
             }
         }
+
+        // --- EKLENTİ 2: UÇAN HASAR YAZILARINI GÜNCELLE ---
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.update(dt);
+            if (ft.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        // 3. KANALİZE EDİLEN SÜREKLİ BÜYÜLERİN ETKİLERİ (KORUNACAK MEVCUT KOD)
+        [p1, p2].forEach(caster => {
+            if (!caster.channelingSpell) return;
+            const target = (caster === p1) ? p2 : p1;
+
+            let drainRate = caster.type === 'voldemort' ? 35 : 30; 
+            caster.mana -= drainRate * dt;
+
+            if (caster.mana <= 0 || caster.state === 'pain' || caster.state === 'stun' || caster.state === 'dead') {
+                caster.mana = Math.max(0, caster.mana);
+                caster.stopChannel();
+                return;
+            }
+
+            const dist = Math.abs(caster.x - target.x);
+            if (dist < 780) {
+                if (caster.type === 'voldemort' && caster.channelingSpell === 'crucio') {
+                    if (target.shieldActive) {
+                        target.mana -= 18 * dt; 
+                    } else {
+                        target.takeDamage(16 * dt, false); 
+                        caster.ultCharge += 15 * dt;      
+                        target.vx *= 0.5;                  
+                    }
+                } 
+                else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
+                    if (target.shieldActive) {
+                        target.mana -= 14 * dt; 
+                    } else {
+                        target.takeDamage(12 * dt, false); 
+                        caster.ultCharge += 12 * dt;
+                        if (Math.random() < 4 * dt) { 
+                            target.addBurnStack();          
+                        }
+                    }
+                }
+            }
+        });
+    }
+
         // --- DÜZELTME: KANALİZE SÜREKLİ BÜYÜLERİN MANA/CAN AKTİF ETKİLERİ ---
         [p1, p2].forEach(caster => {
             if (!caster.channelingSpell) return;
