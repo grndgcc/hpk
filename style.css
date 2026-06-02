@@ -1,0 +1,500 @@
+/**
+ * ============================================================================
+ * HOGWARTS DUEL - WIZARDING CSS STYLESHEET
+ * ============================================================================
+ * Bu stil dosyası; oyunun genel görsel kimliğini, karanlık büyü dünyası
+ * temasını, karakter kartı seçim ekranını, duyarlı (responsive) yerleşimi
+ * ve mobil dokunmatik butonların yerleşim tasarımlarını koordine eder.
+ */
+
+/* Google Fonts üzerinden Cinzel (Klasik Sihirbaz Yazı Tipi) İçe Aktarımı */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Georgia&display=swap');
+
+/* Evrensel Tasarım Değişkenleri (CSS Variables) */
+:root {
+    --gold-primary: #d4af37;
+    --gold-glow: rgba(212, 175, 55, 0.4);
+    --gold-dark: #aa8413;
+    --dark-bg: #0c0f12;
+    --card-bg: #161a22;
+    --card-border: #2d3545;
+    
+    /* Büyü/Karakter Tematik Renkleri */
+    --voldemort-green: #1b4d3e;
+    --voldemort-glow: rgba(27, 77, 62, 0.5);
+    --morgan-violet: #4a154b;
+    --morgan-glow: rgba(74, 21, 75, 0.5);
+    --ruby-red: #ff3333;
+    --mana-blue: #3399ff;
+    
+    /* Font Tanımları */
+    --font-magic: 'Cinzel', 'Georgia', serif;
+    --font-system: 'Arial', sans-serif;
+}
+
+/* Evrensel Sıfırlama (CSS Reset) */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Gövde ve Çerçeve Standartları */
+body, html {
+    width: 100%;
+    height: 100%;
+    background-color: var(--dark-bg);
+    overflow: hidden;
+    font-family: var(--font-magic);
+    color: #ffffff;
+}
+
+/* Ana Oyun Taşıyıcı Konteyneri (Orta Odaklama) */
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, #1a222d 0%, var(--dark-bg) 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Ana Çizim Ekranı (Canvas) */
+canvas {
+    display: block;
+    background-color: #111111;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9),
+                0 0 30px rgba(0, 0, 0, 0.6);
+    border: 3px solid #1a222d;
+    border-radius: 4px;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 16/9;
+}
+
+/* ============================================================================
+   1. KARAKTER SEÇİM EKRANI (SELECTION OVERLAY)
+   ============================================================================ */
+#selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(12, 15, 18, 0.96);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Başlık */
+#selection-title {
+    font-size: 3.2rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    margin-bottom: 2.5rem;
+    color: var(--gold-primary);
+    text-shadow: 0 0 15px var(--gold-glow);
+    text-align: center;
+    animation: magicalFlicker 3s infinite alternate;
+}
+
+/* Karakter Kartları Kapsayıcısı */
+.char-container {
+    display: flex;
+    gap: 3.5rem;
+    margin-bottom: 3rem;
+}
+
+/* Karakter Kartları */
+.char-card {
+    border: 2px solid var(--card-border);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 290px;
+    background: linear-gradient(135deg, #161a22 0%, #0f1218 100%);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Kartların Hover (Üzerine Gelme) Durumları */
+.char-card:hover {
+    border-color: var(--gold-primary);
+    transform: translateY(-8px);
+    box-shadow: 0 12px 30px var(--gold-glow);
+}
+
+/* Kartların Seçilme Durumu */
+.char-card.selected {
+    border-color: #00ffcc;
+    background: linear-gradient(135deg, #1b2430 0%, #0f1218 100%);
+    box-shadow: 0 0 25px rgba(0, 255, 204, 0.35);
+}
+
+/* Voldemort Kartına Özel Seçim Detayı */
+#card-voldemort.selected {
+    border-color: #00ff66;
+    box-shadow: 0 0 25px var(--voldemort-glow);
+}
+
+/* Morgan Kartına Özel Seçim Detayı */
+#card-morgan.selected {
+    border-color: #cc33ff;
+    box-shadow: 0 0 25px var(--morgan-glow);
+}
+
+/* Kartın İçindeki Karakter Resmi */
+.char-card img {
+    width: 140px;
+    height: 280px;
+    object-fit: contain;
+    margin-bottom: 1.2rem;
+    pointer-events: none;
+    transition: transform 0.4s ease;
+}
+
+/* Seçilen Kartın Resminin Hafif Dalgalanması */
+.char-card.selected img {
+    animation: floatingAvatar 3s ease-in-out infinite alternate;
+}
+
+/* Karakter İsmi */
+.char-name {
+    font-size: 1.9rem;
+    font-weight: bold;
+    margin-bottom: 0.6rem;
+    color: #f1f1f1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Karakter Açıklama Metni */
+.char-desc {
+    font-size: 0.85rem;
+    font-family: var(--font-system);
+    color: #a0aec0;
+    line-height: 1.5;
+    text-align: left;
+    margin-top: 1rem;
+    border-top: 1px solid #2d3545;
+    padding-top: 1rem;
+}
+
+.char-desc strong {
+    color: #fff;
+    font-family: var(--font-magic);
+}
+
+/* Büyü Hap Simgeleri (Spell Badges) */
+.spell-badge {
+    display: inline-block;
+    background: #232a38;
+    color: #e2e8f0;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: bold;
+    margin: 3px;
+    border: 1px solid #2d3545;
+    font-family: var(--font-magic);
+}
+
+/* Başlat Butonu */
+#start-btn {
+    background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-dark) 100%);
+    border: 1px solid #ffe89e;
+    color: #0c0f12;
+    font-family: var(--font-magic);
+    font-weight: bold;
+    font-size: 1.3rem;
+    padding: 1rem 3.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    transition: all 0.25s ease;
+    box-shadow: 0 6px 20px rgba(170, 132, 19, 0.4);
+}
+
+#start-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(170, 132, 19, 0.6);
+}
+
+#start-btn:active {
+    transform: scale(0.97);
+}
+
+/* ============================================================================
+   2. MOBİL SANAL KONTROL PANELİ (MOBILE TOUCH CONTROLLER)
+   ============================================================================ */
+#mobile-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 180px;
+    display: none; /* Varsayılan olarak kapalıdır, touch algılandığında açılır */
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 1rem 3rem;
+    pointer-events: none; /* Canvas tıklamalarını engellememesi için */
+    z-index: 5;
+}
+
+/* D-Pad Sol Bölge ve Büyü Sağ Bölge */
+.dpad, .action-buttons {
+    display: flex;
+    pointer-events: auto; /* Butonlara tekrar tıklanabilmesi için */
+}
+
+/* Yön Tuşları (D-Pad Grid) */
+.dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 58px);
+    grid-template-rows: repeat(3, 58px);
+    gap: 4px;
+}
+
+/* Sanal Buton Genel Tasarımı (Ortak) */
+.btn-ctrl {
+    width: 58px;
+    height: 58px;
+    background: rgba(12, 15, 18, 0.7);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: background 0.1s, transform 0.1s;
+}
+
+/* Sanal Buton Basılma Reaksiyonu (Hissiyatı artırmak için) */
+.btn-ctrl:active {
+    background: rgba(255, 255, 255, 0.75);
+    color: #0c0f12;
+    border-color: #fff;
+    transform: scale(0.9);
+}
+
+/* D-Pad Konumlandırmaları */
+.btn-up { grid-column: 2; grid-row: 1; }
+.btn-left { grid-column: 1; grid-row: 2; }
+.btn-right { grid-column: 3; grid-row: 2; }
+.btn-down { grid-column: 2; grid-row: 3; }
+
+/* Büyü Butonları Kümesi (Sağ Bölge) */
+.action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 68px);
+    grid-template-rows: repeat(2, 68px);
+    gap: 12px;
+}
+
+/* Sağ Bölge Büyü Butonu Tasarımı */
+.btn-action {
+    width: 68px;
+    height: 68px;
+    background: rgba(212, 175, 55, 0.25);
+    border: 2px solid rgba(212, 175, 55, 0.55);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: background 0.1s, transform 0.1s;
+}
+
+.btn-action span {
+    font-size: 0.72rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-family: var(--font-magic);
+}
+
+.btn-action small {
+    font-size: 0.52rem;
+    color: #cbd5e0;
+    font-family: var(--font-system);
+    margin-top: 2px;
+}
+
+.btn-action:active {
+    background: rgba(212, 175, 55, 0.8);
+    color: #0c0f12;
+    transform: scale(0.9);
+}
+
+.btn-action:active small {
+    color: #0c0f12;
+}
+
+/* Ultimate (Ölüm/Felç Lanetleri) Butonu Özel Rengi */
+.btn-ult {
+    background: rgba(255, 51, 51, 0.25);
+    border-color: rgba(255, 51, 51, 0.55);
+}
+
+.btn-ult:active {
+    background: rgba(255, 51, 51, 0.85);
+    color: #fff;
+}
+
+/* ============================================================================
+   3. OYUN BİTTİ EKRANI (GAME OVER SCREEN)
+   ============================================================================ */
+#game-over-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(12, 15, 18, 0.95);
+    display: none; /* Kod tarafından bitiş anında açılır */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 15;
+}
+
+#game-over-text {
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--ruby-red);
+    text-transform: uppercase;
+    letter-spacing: 6px;
+    margin-bottom: 2.5rem;
+    text-shadow: 0 0 25px rgba(255, 51, 51, 0.55);
+    text-align: center;
+    animation: screenRumble 0.15s infinite alternate;
+}
+
+#restart-btn {
+    background: #ffffff;
+    color: #0c0f12;
+    border: none;
+    padding: 1.1rem 3rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    border-radius: 5px;
+    letter-spacing: 2px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(255,255,255,0.25);
+}
+
+#restart-btn:hover {
+    background: var(--gold-primary);
+    transform: scale(1.05);
+}
+
+/* ============================================================================
+   4. BÜYÜLÜ CSS ANİMASYONLARI (KAYNAKLAR)
+   ============================================================================ */
+
+/* 1. Başlıklar İçin Büyülü Titreşme Efekti */
+@keyframes magicalFlicker {
+    0% {
+        opacity: 0.95;
+        text-shadow: 0 0 10px var(--gold-glow);
+    }
+    50% {
+        opacity: 1;
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.65),
+                     0 0 30px rgba(212, 175, 55, 0.2);
+    }
+    100% {
+        opacity: 0.90;
+        text-shadow: 0 0 8px var(--gold-glow);
+    }
+}
+
+/* 2. Seçilen Karakter Avatarı Yüzme Hareketi */
+@keyframes floatingAvatar {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-10px);
+    }
+}
+
+/* 3. Oyun Bitti Metni Sarsıntı Efekti */
+@keyframes screenRumble {
+    0% {
+        transform: translate(1px, 1px) rotate(0deg);
+    }
+    100% {
+        transform: translate(-1px, -1px) rotate(0.5deg);
+    }
+}
+
+/* ============================================================================
+   5. DUYARLI EKRAN YAPILARI (MEDIA QUERIES)
+   ============================================================================ */
+
+/* Küçük ekranlı mobil cihazlar için optimize edilmiş sanal tuş konumları */
+@media (max-width: 768px) {
+    #selection-title {
+        font-size: 2.2rem;
+    }
+
+    .char-container {
+        gap: 1.5rem;
+        transform: scale(0.9);
+    }
+
+    .char-card {
+        width: 220px;
+        padding: 1.2rem;
+    }
+
+    .char-card img {
+        height: 200px;
+    }
+
+    #mobile-controls {
+        padding: 0.5rem 1.5rem;
+        height: 150px;
+    }
+
+    .dpad {
+        grid-template-columns: repeat(3, 48px);
+        grid-template-rows: repeat(3, 48px);
+    }
+
+    .btn-ctrl {
+        width: 48px;
+        height: 48px;
+    }
+
+    .action-buttons {
+        grid-template-columns: repeat(2, 54px);
+        grid-template-rows: repeat(2, 54px);
+    }
+
+    .btn-action {
+        width: 54px;
+        height: 54px;
+    }
+}
