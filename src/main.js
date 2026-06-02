@@ -1,16 +1,17 @@
 /**
  * ============================================================================
- * HOGWARTS DUEL - CORE COORDINATOR & GAME ENGINE ORCHESTRATOR
+ * HOGWARTS DUEL - CORE COORDINATOR & GAME ENGINE ORCHESTRATOR (4. AŞAMA)
  * ============================================================================
  * Bu dosya, oyunun merkezi işlem birimidir. Oyun durum makinelerini (FSM),
  * delta-time tabanlı oyun döngüsünü, görsel ölçeklendirmeyi, varlık (asset)
  * yükleme süreçlerini ve diğer tüm alt modüllerin (Fizik, Yapay Zeka, Ses,
  * Girdi, Çizim) koordinasyonunu yönetir.
  * 
- * Modüler Mimari Tasarımı (ES6):
- * - Alt sınıflar ve yöneticiler kendi dosyalarından yüklenir.
- * - Çizim ve fizik güncellemeleri ekran kartının yenilenme hızından bağımsızdır.
- * - Tüm koordinasyon 1280x720 sanal çözünürlük düzleminde hesaplanır.
+ * 4. Aşama Güncellemeleri:
+ * - Sol (Oyuncu) ve Sağ (AI) HUD barlarının çakışması ve yerleşim hatası düzeltildi.
+ * - 1.0 saniyelik büyü sözü söyleme duraklama mekanizması (castDelayTimer) kuruldu.
+ * - Büyü okuma sırasında darbe yendiğinde büyü iptal (interrupt) sistemi eklendi.
+ * - MP3 ses motoru tetikleyicileri ve ana menü arkaplan müzik köprüsü kuruldu.
  */
 
 // Alt Modüllerin İçe Aktarılması
@@ -92,9 +93,9 @@ class GameOrchestrator {
         this.p2Score = 0;
         this.currentRound = 1;
 
-        // Yumuşak Geçişli (Lerp) HUD Barları İçin Hedef Değerler
-        this.p1DisplayHp = 100;
-        this.p2DisplayHp = 100;
+        // Yumuşak Geçişli (Lerp) HUD Barları İçin Hedef Değerler (250 HP tabanına göre ayarlandı)
+        this.p1DisplayHp = 250;
+        this.p2DisplayHp = 250;
         this.p1DisplayMana = 100;
         this.p2DisplayMana = 100;
 
@@ -235,7 +236,6 @@ class GameOrchestrator {
             };
             img.onerror = () => {
                 console.error(`Görsel yüklenemedi: ${this.assetManifest[key]}`);
-                // Hata durumunda da akışın tıkanmaması için yüklenmiş gibi sayıp devam et
                 this.assets.loadedCount++;
                 if (this.assets.loadedCount === this.assets.totalCount) {
                     this.onAssetsLoaded();
@@ -315,9 +315,9 @@ class GameOrchestrator {
             this.p2 = new Character('voldemort', false, 1080, this, CONFIG);
         }
 
-        // HUD Gösterge Değerlerini Sıfırla
-        this.p1DisplayHp = 100;
-        this.p2DisplayHp = 100;
+        // HUD Gösterge Değerlerini Sıfırla (250 HP tabanı)
+        this.p1DisplayHp = 250;
+        this.p2DisplayHp = 250;
         this.p1DisplayMana = 100;
         this.p2DisplayMana = 100;
 
@@ -385,15 +385,34 @@ class GameOrchestrator {
             }
         }
 
+        // Madde 10: Kalkan açılışlarında .mp3 sesi tetiklemek için durum değişim takibi
+        [this.p1, this.p2].forEach(char => {
+            if (char && char.state !== 'dead') {
+                if (char.shieldActive && !char.prevShieldActive) {
+                    if (char.type === 'voldemort') {
+                        this.audio.playVoldemortProtego();
+                    } else {
+                        this.audio.playMorganProtego();
+                    }
+                }
+                char.prevShieldActive = char.shieldActive;
+            }
+        });
+
+        // Oyuncu girdilerini işle
         this.input.updatePlayerMovement(this.p1);
 
+        // Karakterleri güncelle
         this.p1.update(dt, this.p2);
         this.p2.update(dt, this.p1);
 
+        // Yapay Zekayı güncelle
         this.ai.update(dt, this.p2, this.p1);
 
+        // Büyü sistemini ve çarpışmaları güncelle
         this.spells.update(dt, this.p1, this.p2);
 
+        // Arka plan parçacıklarını güncelle
         for (let i = particles.length - 1; i >= 0; i--) {
             particles[i].update(dt);
             if (particles[i].life <= 0) {
@@ -401,6 +420,7 @@ class GameOrchestrator {
             }
         }
 
+        // Lerp HUD barları yumuşak geçiş güncellemesi (250 can limitine oranlandı)
         const lerpFactor = 10 * dt;
         this.p1DisplayHp += (this.p1.hp - this.p1DisplayHp) * lerpFactor;
         this.p2DisplayHp += (this.p2.hp - this.p2DisplayHp) * lerpFactor;
@@ -503,10 +523,11 @@ class GameOrchestrator {
     }
 
     /**
-     * Arayüz ve göstergelerin çizilmesi.
+     * Madde 1: HUD Barlarının Simetrik ve Ayrı Hizalanması
      */
     drawHUD() {
-        this.drawBar(50, 40, 320, 22, this.p1DisplayHp / 100, '#ff3333', '#4a0d0d', 'CAN');
+        // Sol Panel: Oyuncu Karakteri Göstergeleri (Can, Mana, Ulti)
+        this.drawBar(50, 40, 320, 22, this.p1DisplayHp / 250, '#ff3333', '#4a0d0d', 'CAN');
         this.drawBar(50, 70, 240, 12, this.p1DisplayMana / 100, '#3399ff', '#0d284a', 'MANA');
         this.drawBar(50, 90, 240, 8, this.p1.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI');
 
@@ -516,9 +537,11 @@ class GameOrchestrator {
         this.ctx.fillText(this.p1.type.toUpperCase() + ' (SEN)', 50, 30);
         this.ctx.restore();
 
-        this.drawBar(910, 40, 320, 22, this.p2DisplayHp / 100, '#ff3333', '#4a0d0d', 'CAN', true);
-        this.drawBar(990, 70, 240, 12, this.p2DisplayMana / 100, '#3399ff', '#0d284a', 'MANA', true);
-        this.drawBar(990, 90, 240, 8, this.p2.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI', true);
+        // Sağ Panel: Yapay Zeka Karakter Göstergeleri (Can, Mana, Ulti)
+        // Madde 1: alignRight true iken x=50 girildiğinde bar sağ kenardan 50px pay ile simetrik çizilir.
+        this.drawBar(50, 40, 320, 22, this.p2DisplayHp / 250, '#ff3333', '#4a0d0d', 'CAN', true);
+        this.drawBar(50, 70, 240, 12, this.p2DisplayMana / 100, '#3399ff', '#0d284a', 'MANA', true);
+        this.drawBar(50, 90, 240, 8, this.p2.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI', true);
 
         this.ctx.save();
         this.ctx.fillStyle = '#fff';
@@ -649,80 +672,114 @@ class GameOrchestrator {
 
         this.ctx.restore();
     }
-}
 
-// Oyun motoru nesnesini başlat ve dışa aktar
-export const game = new GameOrchestrator();
-
-// --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
-export function castSpell(caster, target, index) {
-    if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain') return;
-
-    if (caster.type === 'voldemort') {
-        if (index === 1) { // Confringo
-            if (caster.mana >= 25) {
-                caster.mana -= 25;
-                caster.say("Confringo!");
-                let dir = caster.facingRight ? 1 : -1;
-                // Çıkış yüksekliği omuz/asa yüksekliğine (y - 210) hizalandı
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 14, caster, 'confringo', game));
-            }
-        } 
-        else if (index === 2) { // Crucio
-            if (caster.mana >= 30) {
-                caster.say("Crucio!");
-                caster.channelingSpell = 'crucio';
-                game.audio.playLightning();
-            }
+    /**
+     * Madde 10: 1 Saniyelik Büyü Sözü Söyleme Gecikmesi Süresini Dolduran ve Asıl Fırlatmayı Tetikleyen Fonksiyon
+     */
+    executePendingSpell(caster) {
+        const target = (caster === this.p1) ? this.p2 : this.p1;
+        
+        // Büyü okuma sırasında darbe alındıysa büyü iptal edilir
+        if (caster.state === 'pain' || caster.state === 'stun' || caster.state === 'dead') {
+            caster.pendingSpellIndex = null;
+            return;
         }
-        else if (index === 3) { // Avada Kedavra
-            if (caster.ultCharge >= 100) {
-                caster.ultCharge = 0;
-                caster.say("Avada Kedavra!");
-                game.audio.playLightning();
-                
-                let dir = caster.facingRight ? 1 : -1;
+
+        const index = caster.pendingSpellIndex;
+        caster.pendingSpellIndex = null; // Hazırlığı sıfırla
+
+        let dir = caster.facingRight ? 1 : -1;
+
+        if (caster.type === 'voldemort') {
+            if (index === 1) { // Yer hedefli Confringo patlaması tetiklenir
+                this.spells.triggerConfringo(target.x, caster);
+            }
+            else if (index === 3) { // Avada Kedavra ölüm ışını fırlatılır
                 let isHit = true;
                 if (target.isDucking) isHit = false;
-                if (target.y < 600 - 50) isHit = false; // Zıpladıysa kurtulur
+                if (target.y < 600 - 50) isHit = false; // Havaya sıçrayan hedefler kurtulur
 
                 const startX = caster.x + dir * 60;
                 const startY = caster.y - 210;
                 const endX = isHit ? target.x : (caster.facingRight ? 1280 : 0);
                 const endY = isHit ? target.y - 210 : caster.y - 210;
 
-                game.spells.triggerAvadaBeam(startX, startY, endX, endY);
+                this.spells.triggerAvadaBeam(startX, startY, endX, endY);
 
                 if (isHit) {
                     target.takeDamage(9999, true); 
                 }
             }
+        } else { // Morgan
+            if (index === 2) { // Sectumsempra mermisi fırlatılır (Hız 12'ye düşürüldü)
+                this.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 12, caster, 'sectumsempra', this));
+            }
+            else if (index === 3) { // Expelliarmus ulti mermisi fırlatılır (Hız 14'ye düşürüldü)
+                this.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 14, caster, 'expelliarmus', this));
+            }
+        }
+    }
+}
+
+// Oyun motoru nesnesini başlat ve dışa aktar
+export const game = new GameOrchestrator();
+
+// --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
+// Madde 10: Büyü sözü söyleme duraklama ve ses çalma tetikleyicileri entegre edildi
+export function castSpell(caster, target, index) {
+    if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain' || caster.castDelayTimer > 0) return;
+
+    if (caster.type === 'voldemort') {
+        if (index === 1) { // Confringo
+            if (caster.mana >= 25) {
+                caster.mana -= 25;
+                caster.say("Confringo!");
+                caster.castDelayTimer = 1.0; // Madde 10: 1.0 saniye büyü sözü söyleme kilidi
+                caster.pendingSpellIndex = index;
+                game.audio.playConfringoCast(); // confringo.mp3 çalınır
+            }
+        } 
+        else if (index === 2) { // Crucio (Kanalizasyon büyüsü - gecikmesiz başlar)
+            if (caster.mana >= 30) {
+                caster.say("Crucio!");
+                caster.channelingSpell = 'crucio';
+                game.audio.playCrucioCast(); // crucio.mp3 çalınır
+            }
+        }
+        else if (index === 3) { // Avada Kedavra
+            if (caster.ultCharge >= 100) {
+                caster.ultCharge = 0;
+                caster.say("Avada Kedavra!");
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playAvadaKedavraCast(); // avadakedavra.mp3 çalınır
+            }
         }
     } 
     else { // Morgan
-        if (index === 1) { // Incendio
+        if (index === 1) { // Incendio (Kanalizasyon - gecikmesiz)
             if (caster.mana >= 20) {
                 caster.say("Incendio!");
                 caster.channelingSpell = 'incendio';
-                game.audio.startFlame();
+                game.audio.startFlame(); // morganincendio.mp3 döngüsü başlar
             }
         }
         else if (index === 2) { // Sectumsempra
             if (caster.mana >= 20) {
                 caster.mana -= 20;
                 caster.say("Sectumsempra!");
-                let dir = caster.facingRight ? 1 : -1;
-                // Çıkış yüksekliği omuz/asa yüksekliğine (y - 210) hizalandı
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 21, caster, 'sectumsempra', game));
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playMorganSectumsempraCast(); // morgansectumsempra.mp3 çalınır
             }
         }
         else if (index === 3) { // Expelliarmus
             if (caster.ultCharge >= 100) {
                 caster.ultCharge = 0;
                 caster.say("Expelliarmus!");
-                let dir = caster.facingRight ? 1 : -1;
-                // Çıkış yüksekliği omuz/asa yüksekliğine (y - 210) hizalandı
-                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 25, caster, 'expelliarmus', game));
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playMorganExpelliarmusCast(); // morganexpelliarmus.mp3 çalınır
             }
         }
     }
@@ -755,8 +812,9 @@ if (cardVold && cardMorgan && startBtn && overlay) {
     startBtn.addEventListener('click', () => {
         // Ses modülünü uyandır
         game.audio.init();
+        game.audio.playTheme(); // maintheme.mp3 ana menü müziğini başlatır
 
-        // Düelloyu asıl durum makinesinden başlat
+        // Düelloyu başlat
         game.startDuel(playerChar);
 
         // Mobil düğme isimlerini dinamik olarak ayarla
@@ -768,10 +826,18 @@ if (cardVold && cardMorgan && startBtn && overlay) {
             document.getElementById('btn-sp2').innerHTML = '<span>Sectum</span><small>L / 3</small>';
         }
 
-        // Seçim ekranını yumuşakça kaldır
+        // Seçim ekranını kaldır
         overlay.style.opacity = 0;
         setTimeout(() => {
             overlay.style.display = 'none';
         }, 500);
     });
 }
+
+// Madde 10: Sayfaya ilk etkileşimde ana tema müziğini güvenli bir şekilde uyandırır
+window.addEventListener('click', () => {
+    if (game.audio) {
+        game.audio.init();
+        game.audio.playTheme();
+    }
+}, { once: true });
