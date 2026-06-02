@@ -4,272 +4,228 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Hogwarts Duel - Tekken Style Wizard Fighter</title>
+    
+    <!-- Harici Gelişmiş CSS Dosyasının Yüklenmesi -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Sadece Kılavuz Modalı ve Yardım Butonuna Özel Ekstra Tematik Stiller -->
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0c0f12;
-            font-family: 'Cinzel', 'Georgia', serif;
-            color: #fff;
-        }
-        #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        canvas {
-            display: block;
-            background-color: #111;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: 16/9;
-        }
-        /* Character Selection Overlay */
-        #selection-overlay {
+        #help-btn {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(12, 15, 18, 0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
-            transition: opacity 0.5s ease;
-        }
-        #selection-title {
-            font-size: 3rem;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            margin-bottom: 2rem;
+            top: 15px;
+            left: 15px;
+            background: rgba(22, 26, 34, 0.8);
+            border: 1px solid #d4af37;
             color: #d4af37;
-            text-shadow: 0 0 10px rgba(212,175,55,0.5);
-            text-align: center;
-        }
-        .char-container {
-            display: flex;
-            gap: 3rem;
-            margin-bottom: 3rem;
-        }
-        .char-card {
-            border: 2px solid #334;
-            border-radius: 10px;
-            padding: 1.5rem;
-            width: 280px;
-            background: #161a22;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .char-card:hover {
-            border-color: #d4af37;
-            transform: translateY(-10px);
-            box-shadow: 0 10px 25px rgba(212,175,55,0.2);
-        }
-        .char-card.selected {
-            border-color: #00ffcc;
-            box-shadow: 0 0 20px rgba(0,255,204,0.3);
-        }
-        .char-card img {
-            width: 120px;
-            height: 260px;
-            object-fit: contain;
-            margin-bottom: 1rem;
-            pointer-events: none;
-        }
-        .char-name {
-            font-size: 1.8rem;
-            margin-bottom: 0.5rem;
+            font-family: 'Cinzel', serif;
             font-weight: bold;
-            color: #eee;
-        }
-        .char-desc {
-            font-size: 0.9rem;
-            color: #8a94a6;
-            line-height: 1.4;
-            text-align: left;
-            margin-top: 0.8rem;
-            border-top: 1px solid #2d3545;
-            padding-top: 0.8rem;
-        }
-        .spell-badge {
-            display: inline-block;
-            background: #232a38;
-            color: #cfd8dc;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin: 2px;
-        }
-        #start-btn {
-            background: linear-gradient(135deg, #d4af37 0%, #aa8413 100%);
-            border: none;
-            color: #0c0f12;
-            font-weight: bold;
-            font-size: 1.4rem;
-            padding: 1rem 3rem;
-            border-radius: 5px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.2s ease;
-            box-shadow: 0 5px 15px rgba(170,132,19,0.4);
-        }
-        #start-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 20px rgba(170,132,19,0.6);
-        }
-        #start-btn:active {
-            transform: scale(0.98);
-        }
-        /* Mobile Controls */
-        #mobile-controls {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 200px;
-            display: none; /* Only visible on touch devices */
-            justify-content: space-between;
-            align-items: flex-end;
-            padding: 1rem 2rem;
-            pointer-events: none;
-            z-index: 5;
-        }
-        .dpad, .action-buttons {
-            display: flex;
-            pointer-events: auto;
-        }
-        .dpad {
-            display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(3, 60px);
-            gap: 5px;
-        }
-        .btn-ctrl {
-            width: 60px;
-            height: 60px;
-            background: rgba(25a, 35, 45, 0.4);
-            border: 2px solid rgba(255,255,255,0.4);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            font-weight: bold;
-            font-size: 1.2rem;
-            cursor: pointer;
-            user-select: none;
-            touch-action: manipulation;
-        }
-        .btn-ctrl:active {
-            background: rgba(255,255,255,0.7);
-            color: #000;
-        }
-        .btn-up { grid-column: 2; grid-row: 1; }
-        .btn-left { grid-column: 1; grid-row: 2; }
-        .btn-right { grid-column: 3; grid-row: 2; }
-        .btn-down { grid-column: 2; grid-row: 3; }
-
-        .action-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 70px);
-            grid-template-rows: repeat(2, 70px);
-            gap: 10px;
-        }
-        .btn-action {
-            width: 70px;
-            height: 70px;
-            background: rgba(212, 175, 55, 0.3);
-            border: 2px solid rgba(212,175,55,0.6);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            font-weight: bold;
+            padding: 8px 16px;
             font-size: 0.8rem;
+            border-radius: 4px;
             cursor: pointer;
-            touch-action: manipulation;
+            z-index: 20;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .btn-action:active {
-            background: rgba(212,175,55,0.8);
-            color: #000;
+        #help-btn:hover {
+            background: #d4af37;
+            color: #0c0f12;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
         }
-        .btn-ult {
-            background: rgba(255, 51, 51, 0.3);
-            border-color: rgba(255, 51, 51, 0.6);
-        }
-        .btn-ult:active {
-            background: rgba(255, 51, 51, 0.8);
-        }
-
-        /* Screen message */
-        #game-over-screen {
+        #help-modal {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(12, 15, 18, 0.98);
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 9;
+            z-index: 30;
+            padding: 2rem;
+            overflow-y: auto;
         }
-        #game-over-text {
-            font-size: 4rem;
-            color: #ff3333;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-            margin-bottom: 2rem;
-            text-shadow: 0 0 20px rgba(255,51,51,0.5);
+        .modal-content {
+            background: linear-gradient(135deg, #161a22 0%, #0c0f12 100%);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 100%;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            font-size: 2.2rem;
+            color: #d4af37;
             text-align: center;
-        }
-        #restart-btn {
-            background: #fff;
-            color: #000;
-            border: none;
-            padding: 1rem 2.5rem;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
+            margin-bottom: 1.5rem;
             text-transform: uppercase;
-            border-radius: 5px;
+            border-bottom: 1px solid #2d3545;
+            padding-bottom: 1rem;
+        }
+        .modal-section {
+            margin-bottom: 1.5rem;
+        }
+        .modal-section h3 {
+            color: #ffffff;
+            font-size: 1.2rem;
+            margin-bottom: 0.6rem;
+            border-left: 3px solid #d4af37;
+            padding-left: 10px;
+        }
+        .modal-section p, .modal-section li {
+            font-family: 'Arial', sans-serif;
+            font-size: 0.88rem;
+            color: #a0aec0;
+            line-height: 1.6;
+        }
+        .modal-section ul {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+        .control-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.85rem;
+        }
+        .control-table th, .control-table td {
+            border: 1px solid #2d3545;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .control-table th {
+            background: #232a38;
+            color: #fff;
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+        }
+        .control-table td strong {
+            color: #d4af37;
+        }
+        #close-help-btn {
+            display: block;
+            margin: 1.5rem auto 0 auto;
+            background: #fff;
+            color: #0c0f12;
+            border: none;
+            padding: 10px 24px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
             transition: all 0.2s ease;
         }
-        #restart-btn:hover {
+        #close-help-btn:hover {
             background: #d4af37;
-            transform: scale(1.05);
+            transform: scale(1.03);
         }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <!-- Character Selection Screen -->
+    
+    <!-- Nasıl Oynanır / Kılavuz Butonu -->
+    <button id="help-btn">Nasıl Oynanır?</button>
+
+    <!-- Nasıl Oynanır Modalı (Yardım Penceresi) -->
+    <div id="help-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">DÜELLO KILAVUZU</h2>
+            
+            <div class="modal-section">
+                <h3>Genel Kurallar</h3>
+                <p>
+                    Hogwarts Düellosu, delta-time tabanlı fizik simülasyonuna sahip 2D dövüş oyunudur. Oyundaki amacınız,
+                    zorlu taktiksel yapay zekaya (AI) karşı canınız tükenmeden önce 2 raunt kazanmaktır. Oyunda <strong>Can kazanma mekaniği yoktur</strong>.
+                    Bu yüzden attığınız her adımda savunma zamanlamanız kritik önem taşır.
+                </p>
+            </div>
+
+            <div class="modal-section">
+                <h3>Savaş Kontrolleri (PC)</h3>
+                <table class="control-table">
+                    <thead>
+                        <tr>
+                            <th>Eylem</th>
+                            <th>Klavye Tuşu</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Sola Git</strong></td>
+                            <td>A veya Sol Ok</td>
+                            <td>Karakteri sola doğru hareket ettirir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sağa Git</strong></td>
+                            <td>D veya Sağ Ok</td>
+                            <td>Karakteri sağa doğru hareket ettirir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Zıpla (Kaçış)</strong></td>
+                            <td>W veya Yukarı Ok</td>
+                            <td>Projektillerin ve yer patlamalarının üzerinden atlamanızı sağlar.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Eğil (AK Kaçışı)</strong></td>
+                            <td>S veya Aşağı Ok</td>
+                            <td>Hurtbox'ınızı daraltarak Avada Kedavra veya hızlı şimşeklerin üzerinden geçmesini sağlar.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Protego (Kalkan)</strong></td>
+                            <td>J veya 1 (Basılı Tutulur)</td>
+                            <td>Korunabilir büyüleri hasarsız engeller. Saniyede 36 mana eritir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>1. Büyü</strong></td>
+                            <td>K veya 2</td>
+                            <td><strong>Voldemort:</strong> Confringo (Patlama) | <strong>Morgan:</strong> Incendio (Alev - Basılı Tutulur)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Büyü</strong></td>
+                            <td>L veya 3</td>
+                            <td><strong>Voldemort:</strong> Crucio (Basılı Tutulur) | <strong>Morgan:</strong> Sectumsempra (Sinsi Kesiş)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ULTIMATE (Ulti)</strong></td>
+                            <td>I veya 4</td>
+                            <td>%100 Ulti yükünde kullanılabilir. <strong>Voldemort:</strong> Avada Kedavra | <strong>Morgan:</strong> Expelliarmus</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-section">
+                <h3>Gelişmiş Dövüş Taktikleri</h3>
+                <ul>
+                    <li><strong>Kalkan Cezalandırma (Shield Baiting):</strong> Yapay zeka kalkan açtığında Voldemort ile kalkanı yok sayan <em>Confringo</em> fırlatın. Morgan ile oynuyorsanız, kalkanı açık tutmanın manayı hızla erittiğini unutmayın; rakibe <em>Incendio</em> püskürterek kalkanını kaldırmaya zorlayın.</li>
+                    <li><strong>Sinsi Sectumsempra:</strong> Sectumsempra büyüsü fırlatıldığında ilk 420 piksel boyunca neredeyse tamamen görünmez uçar. Yapay zekanın Protego zamanlamasını yanıltmak için bu mesafeyi iyi ayarlayın.</li>
+                    <li><strong>Avada Kedavra'dan Kurtulma:</strong> Voldemort'un nihai yeşil şimşeği kalkanla engellenemez. Ancak tam atıldığı saniyede eğilir (S/Aşağı) veya havada zıplıyorsanız (W/Yukarı), şimşek size isabet etmez.</li>
+                    <li><strong>Mana Koruma Kültürü:</strong> Protego'yu sürekli açık tutmak mananızı anında bitirir. Sadece rakip projektil asadan çıkıp size yaklaşırken (çarpmaya yakın) kalkanı açıp kapatarak (*perfect block*) mananızı koruyun.</li>
+                </ul>
+            </div>
+
+            <button id="close-help-btn">Savaş Alanına Dön</button>
+        </div>
+    </div>
+
+    <!-- Karakter Seçim Ekranı (Selection Overlay) -->
     <div id="selection-overlay">
         <h1 id="selection-title">HOGWARTS DUELLOSU</h1>
         <div class="char-container">
+            
+            <!-- Voldemort Seçim Kartı -->
             <div class="char-card" id="card-voldemort">
+                <!-- voldemortstand.png ana dizinde -->
                 <img src="voldemortstand.png" alt="Voldemort">
                 <div class="char-name">Voldemort</div>
                 <div class="char-desc">
@@ -277,12 +233,15 @@
                     <span class="spell-badge">Protego</span>
                     <span class="spell-badge">Confringo</span>
                     <span class="spell-badge">Crucio</span>
-                    <span class="spell-badge" style="background: #1b4d3e;">Avada Kedavra (Ult)</span>
+                    <span class="spell-badge" style="background: var(--voldemort-green);">Avada Kedavra (Ult)</span>
                     <br><br>
-                    Yüksek hasar ve durdurulamaz bir ölüm laneti taşır. Ultisi engellenemez ve anında öldürür fakat dolması zordur.
+                    Yüksek mana tüketen yıkıcı büyülere sahiptir. Crucio ile rakibi acı içinde dondururken, engellenemez yeşil ölüm lanetiyle anında saf dışı bırakabilir.
                 </div>
             </div>
+
+            <!-- Morgan Seçim Kartı -->
             <div class="char-card" id="card-morgan">
+                <!-- morganstand.png ana dizinde -->
                 <img src="morganstand.png" alt="Morgan">
                 <div class="char-name">Morgan</div>
                 <div class="char-desc">
@@ -290,25 +249,28 @@
                     <span class="spell-badge">Protego</span>
                     <span class="spell-badge">Incendio</span>
                     <span class="spell-badge">Sectumsempra</span>
-                    <span class="spell-badge" style="background: #4a154b;">Expelliarmus (Ult)</span>
+                    <span class="spell-badge" style="background: var(--morgan-violet);">Expelliarmus (Ult)</span>
                     <br><br>
-                    Hızlı ve sinsi büyülere sahiptir. Sectumsempra ilk başta görünmezdir. Ultisi çok hızlıdır ve rakibi dondurur (Stun).
+                    Hızlı ve sinsi büyülere odaklanır. Sectumsempra ilk başta havada görünmez süzülür. Ultisi çok hızlı ilerler ve rakibi 3.5 saniye dondurur.
                 </div>
             </div>
+
         </div>
+        
+        <!-- Düelloya Başlatıcı Buton -->
         <button id="start-btn">DÜELLOYA BAŞLA</button>
     </div>
 
-    <!-- Canvas for the game -->
+    <!-- Ana Çizim Ekranı (Canvas) -->
     <canvas id="gameCanvas" width="1280" height="720"></canvas>
 
-    <!-- Game Over Screen -->
+    <!-- Oyun Bitti Ekranı (Game Over Screen) -->
     <div id="game-over-screen">
         <h2 id="game-over-text">DÜELLO BİTTİ</h2>
         <button id="restart-btn">Yeniden Oyna</button>
     </div>
 
-    <!-- Mobile Virtual Gamepad Overlay -->
+    <!-- Mobil Virtual Gamepad Ekranı (Dokunmatik ekranlarda JS tarafından açılır) -->
     <div id="mobile-controls">
         <div class="dpad">
             <div class="btn-ctrl btn-up" id="btn-up">▲</div>
@@ -317,1253 +279,31 @@
             <div class="btn-ctrl btn-down" id="btn-down">▼</div>
         </div>
         <div class="action-buttons">
-            <div class="btn-action" id="btn-sp1"><span>Confringo</span><small>K / 2</small></div>
-            <div class="btn-action" id="btn-sp2"><span>Crucio</span><small>L / 3</small></div>
+            <div class="btn-action" id="btn-sp1"><span>Büyü 1</span><small>K / 2</small></div>
+            <div class="btn-action" id="btn-sp2"><span>Büyü 2</span><small>L / 3</small></div>
             <div class="btn-action" id="btn-prot"><span>Protego</span><small>J / 1</small></div>
             <div class="btn-action btn-ult" id="btn-ult"><span>ULT</span><small>I / 4</small></div>
         </div>
     </div>
 </div>
 
+<!-- Kılavuz Modal Açma/Kapama Scripti -->
 <script>
-// --- AUDIO SYSTEM (Web Audio API Synthesizer) ---
-class AudioController {
-    constructor() {
-        this.ctx = null;
-        this.fireSource = null;
-        this.fireOsc = null;
-        this.fireGain = null;
-    }
-
-    init() {
-        if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
-    }
-
-    playWalk() {
-        this.init();
-        let osc = this.ctx.createOscillator();
-        let gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(90, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.12);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.12);
-    }
-
-    playExplosion() {
-        this.init();
-        let bufferSize = this.ctx.sampleRate * 1.5;
-        let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        let data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        let noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        
-        let filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(250, this.ctx.currentTime);
-        filter.frequency.exponentialRampToValueAtTime(15, this.ctx.currentTime + 1.2);
-        
-        let gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.6, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.2);
-        
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-        
-        // Low sine boom
-        let osc = this.ctx.createOscillator();
-        let oscGain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(110, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
-        oscGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
-        oscGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
-        osc.connect(oscGain);
-        oscGain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.4);
-    }
-
-    playLightning() {
-        this.init();
-        let bufferSize = this.ctx.sampleRate * 1.2;
-        let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        let data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        let noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        
-        let filter = this.ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
-        
-        let gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.0);
-        
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-        
-        // Modulated crackle hum
-        let osc = this.ctx.createOscillator();
-        let oscGain = this.ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
-        oscGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        oscGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.0);
-        osc.connect(oscGain);
-        oscGain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 1.0);
-    }
-
-    startFlame() {
-        this.init();
-        if (this.fireOsc) return;
-        
-        let bufferSize = this.ctx.sampleRate * 1.0;
-        let buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        let data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        
-        this.fireSource = this.ctx.createBufferSource();
-        this.fireSource.buffer = buffer;
-        this.fireSource.loop = true;
-        
-        let filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(320, this.ctx.currentTime);
-        filter.Q.setValueAtTime(2.0, this.ctx.currentTime);
-        
-        this.fireGain = this.ctx.createGain();
-        this.fireGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        
-        this.fireSource.connect(filter);
-        filter.connect(this.fireGain);
-        this.fireGain.connect(this.ctx.destination);
-        
-        this.fireSource.start();
-        
-        // Tremolo roar
-        this.fireOsc = this.ctx.createOscillator();
-        let lfoGain = this.ctx.createGain();
-        this.fireOsc.frequency.setValueAtTime(15, this.ctx.currentTime);
-        lfoGain.gain.setValueAtTime(80, this.ctx.currentTime);
-        this.fireOsc.connect(lfoGain);
-        lfoGain.connect(filter.frequency);
-        this.fireOsc.start();
-    }
-
-    stopFlame() {
-        if (this.fireSource) {
-            try { this.fireSource.stop(); } catch(e){}
-            this.fireSource = null;
-        }
-        if (this.fireOsc) {
-            try { this.fireOsc.stop(); } catch(e){}
-            this.fireOsc = null;
-        }
-        this.fireGain = null;
-    }
-
-    playScream(isMorgan) {
-        this.init();
-        let osc = this.ctx.createOscillator();
-        let osc2 = this.ctx.createOscillator();
-        let gain = this.ctx.createGain();
-        let filter = this.ctx.createBiquadFilter();
-        
-        let baseFreq = isMorgan ? 780 : 380;
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
-        
-        let lfo = this.ctx.createOscillator();
-        let lfoGain = this.ctx.createGain();
-        lfo.frequency.setValueAtTime(40, this.ctx.currentTime); // Fast crackling tremolo
-        lfoGain.gain.setValueAtTime(120, this.ctx.currentTime);
-        lfo.connect(lfoGain);
-        lfoGain.connect(osc.frequency);
-        lfo.start();
-        
-        osc2.type = 'square';
-        osc2.frequency.setValueAtTime(baseFreq * 1.8, this.ctx.currentTime);
-        lfoGain.connect(osc2.frequency);
-        osc2.start();
-        
-        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.1);
-        
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
-        filter.Q.setValueAtTime(1.5, this.ctx.currentTime);
-        
-        osc.connect(filter);
-        osc2.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        
-        osc.start();
-        osc2.start();
-        osc.stop(this.ctx.currentTime + 1.1);
-        osc2.stop(this.ctx.currentTime + 1.1);
-        lfo.stop(this.ctx.currentTime + 1.1);
-    }
-}
-
-const audio = new AudioController();
-
-// --- IMAGE LOADER & NEW ASSET MAPPING ---
-const assets = {
-    bg: new Image(),
-    voldemort_idle: new Image(),
-    voldemort_attack: [],
-    voldemort_walk: [],
-    morgan_idle: new Image(),
-    morgan_attack: [],
-    morgan_walk: [],
-    protego: new Image(),
-    blood: new Image(),
-    avadakedavra: new Image(),
-    confringo_proj: [],
-    confringo_exp: [],
-    incendio: [],
-    crucio: new Image(),
-    expelliarmus: new Image(),
-    sectumsempra: new Image()
-};
-
-// Map real user filenames
-assets.bg.src = 'arkaplan.png';
-assets.voldemort_idle.src = 'voldemortstand.png';
-
-// Voldemort attacks (3 frames)
-for (let i = 1; i <= 3; i++) {
-    let img = new Image();
-    img.src = `voldemortattack${i}.png`;
-    assets.voldemort_attack.push(img);
-}
-
-// Voldemort walks (7 frames)
-for (let i = 1; i <= 7; i++) {
-    let img = new Image();
-    img.src = `voldemortwalk${i}.png`;
-    assets.voldemort_walk.push(img);
-}
-
-assets.morgan_idle.src = 'morganstand.png';
-
-// Morgan attacks (3 frames)
-for (let i = 1; i <= 3; i++) {
-    let img = new Image();
-    img.src = `morganattack${i}.png`;
-    assets.morgan_attack.push(img);
-}
-
-// Morgan walks (7 frames)
-for (let i = 1; i <= 7; i++) {
-    let img = new Image();
-    img.src = `morganwalk${i}.png`;
-    assets.morgan_walk.push(img);
-}
-
-// Spells & VFX
-assets.protego.src = 'protego.png';
-assets.blood.src = 'sectumsemprablood.png';
-assets.avadakedavra.src = 'avadakedavra.png';
-
-// Confringo Projectiles (1-2) & Explosion (3-4)
-assets.confringo_proj.push(Object.assign(new Image(), { src: 'confringo1.png' }));
-assets.confringo_proj.push(Object.assign(new Image(), { src: 'confringo2.png' }));
-assets.confringo_exp.push(Object.assign(new Image(), { src: 'confringo3.png' }));
-assets.confringo_exp.push(Object.assign(new Image(), { src: 'confringo4.png' }));
-
-// Incendio Fire Streams (1-3)
-assets.incendio.push(Object.assign(new Image(), { src: 'incendio1.png' }));
-assets.incendio.push(Object.assign(new Image(), { src: 'incendio2.png' }));
-assets.incendio.push(Object.assign(new Image(), { src: 'incendio3.png' }));
-
-assets.crucio.src = 'crucio.png';
-assets.expelliarmus.src = 'expelliarmus.png';
-assets.sectumsempra.src = 'sectumsempra.png';
-
-// --- GAME LOGIC ENGINE ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-const GAME_WIDTH = 1280;
-const GAME_HEIGHT = 720;
-const FLOOR_Y = 600;
-
-let playerChar = 'voldemort'; 
-let p1 = null;
-let p2 = null;
-let entities = [];
-let particles = [];
-let gameRunning = false;
-
-class SpeechBubble {
-    constructor(text, x, y) {
-        this.text = text;
-        this.x = x;
-        this.y = y;
-        this.timer = 50; 
-    }
-    update(x, y) {
-        this.x = x;
-        this.y = y;
-        this.timer--;
-    }
-    draw() {
-        ctx.save();
-        ctx.font = 'bold 16px Arial';
-        const metrics = ctx.measureText(this.text);
-        const w = metrics.width + 16;
-        const h = 26;
-        const rx = this.x - w / 2;
-        const ry = this.y - 45 - h;
-        
-        ctx.fillStyle = 'rgba(0,0,0,0.85)';
-        ctx.strokeStyle = '#d4af37';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(rx, ry, w, h, 6);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#d4af37';
-        ctx.beginPath();
-        ctx.moveTo(this.x - 6, ry + h);
-        ctx.lineTo(this.x + 6, ry + h);
-        ctx.lineTo(this.x, ry + h + 6);
-        ctx.fill();
-
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.text, this.x, ry + h / 2 + 1);
-        ctx.restore();
-    }
-}
-
-class Character {
-    constructor(type, isPlayer, startX) {
-        this.type = type; 
-        this.isPlayer = isPlayer;
-        this.x = startX;
-        this.y = FLOOR_Y;
-        this.vx = 0;
-        this.vy = 0;
-        this.width = 130;
-        this.height = 280;
-        
-        this.hp = 100;
-        this.mana = 100;
-        this.ultCharge = 0; 
-
-        this.facingRight = isPlayer;
-        this.isGrounded = true;
-        this.isDucking = false;
-        this.state = 'idle'; 
-        
-        this.animTimer = 0;
-        this.walkCycleIndex = 0;
-
-        this.castTimer = 0;
-        this.painTimer = 0;
-        this.stunTimer = 0;
-        this.shieldActive = false;
-        
-        this.channelingSpell = null; 
-        this.channelTarget = null;
-
-        this.bubble = null;
-        
-        this.burnStacks = 0;
-        this.burnTimer = 0;
-    }
-
-    say(text) {
-        this.bubble = new SpeechBubble(text, this.x, this.y - this.height);
-    }
-
-    takeDamage(amount, bypassShield = false) {
-        if (this.state === 'dead') return;
-        
-        if (this.shieldActive && !bypassShield) {
-            return;
-        }
-
-        this.hp = Math.max(0, this.hp - amount);
-        
-        if (this.channelingSpell) {
-            this.stopChannel();
-        }
-
-        if (this.hp <= 0) {
-            this.state = 'dead';
-            this.vx = 0;
-            this.vy = 0;
-        } else {
-            this.state = 'pain';
-            this.painTimer = 18; 
-        }
-    }
-
-    addBurnStack() {
-        if (this.burnStacks < 5) this.burnStacks++;
-        this.burnTimer = 150; 
-    }
-
-    stopChannel() {
-        this.channelingSpell = null;
-        if (this.type === 'morgan') {
-            audio.stopFlame();
-        }
-    }
-
-    update(opponent) {
-        this.ultCharge = Math.min(100, this.ultCharge);
-        this.facingRight = (opponent.x > this.x);
-
-        if (this.stunTimer > 0) {
-            this.stunTimer--;
-            this.state = 'stun';
-            this.vx = 0;
-            this.shieldActive = false;
-            this.stopChannel();
-        }
-
-        if (this.state === 'pain') {
-            this.painTimer--;
-            this.vx = 0;
-            if (this.painTimer <= 0) {
-                this.state = 'idle';
-            }
-        }
-
-        if (this.burnStacks > 0) {
-            this.burnTimer--;
-            if (this.burnTimer % 30 === 0) { 
-                this.hp = Math.max(0, this.hp - (this.burnStacks * 0.8));
-                spawnSplashParticles(this.x, this.y - 120, 'orange', 3);
-            }
-            if (this.burnTimer <= 0) {
-                this.burnStacks = 0;
-            }
-        }
-
-        if (this.state !== 'dead') {
-            let regenRate = 0.15; 
-            if (this.shieldActive) {
-                regenRate = -0.6; 
-            }
-            this.mana = Math.min(100, Math.max(0, this.mana + regenRate));
-            
-            if (this.mana <= 0 && this.shieldActive) {
-                this.shieldActive = false;
-            }
-        }
-
-        if (this.shieldActive) {
-            this.vx = 0;
-            this.state = 'cast';
-        }
-
-        if (!this.isGrounded) {
-            this.vy += 0.8; 
-            this.y += this.vy;
-            if (this.y >= FLOOR_Y) {
-                this.y = FLOOR_Y;
-                this.vy = 0;
-                this.isGrounded = true;
-            }
-        }
-
-        this.x += this.vx;
-        this.x = Math.max(80, Math.min(GAME_WIDTH - 80, this.x));
-
-        if (this.state !== 'pain' && this.state !== 'dead' && this.state !== 'stun') {
-            if (this.shieldActive || this.channelingSpell) {
-                this.state = 'cast';
-            } else if (Math.abs(this.vx) > 0.1) {
-                this.state = 'walk';
-            } else {
-                this.state = 'idle';
-            }
-        }
-
-        if (this.bubble) {
-            this.bubble.update(this.x, this.y - this.height);
-            if (this.bubble.timer <= 0) {
-                this.bubble = null;
-            }
-        }
-
-        if (this.state === 'walk') {
-            this.animTimer++;
-            if (this.animTimer % 8 === 0) { 
-                audio.playWalk();
-                this.walkCycleIndex = (this.walkCycleIndex + 1) % 7;
-            }
-        }
-
-        if (this.channelingSpell) {
-            this.vx = 0;
-            if (this.type === 'voldemort' && this.channelingSpell === 'crucio') {
-                this.mana -= 0.7; 
-                if (this.mana <= 1) this.stopChannel();
-                
-                if (Math.abs(this.x - opponent.x) < 800 && !opponent.shieldActive) {
-                    opponent.takeDamage(0.3, false);
-                    opponent.stunTimer = 3; 
-                    if (Math.random() < 0.15) {
-                        audio.playScream(opponent.type === 'morgan');
-                    }
-                    spawnSplashParticles(opponent.x, opponent.y - 120, 'violet', 2);
-                }
-            } else if (this.type === 'morgan' && this.channelingSpell === 'incendio') {
-                this.mana -= 0.35; 
-                if (this.mana <= 1) this.stopChannel();
-                
-                if (Math.abs(this.x - opponent.x) < 700) {
-                    if (opponent.shieldActive) {
-                        // Shield blocks impact and DoT
-                    } else {
-                        opponent.takeDamage(0.12, false);
-                        opponent.addBurnStack();
-                        spawnSplashParticles(opponent.x, opponent.y - 120, 'orange', 3);
-                    }
-                }
-            }
-        }
-    }
-
-    draw() {
-        ctx.save();
-        let mustFlip = !this.facingRight;
-        let img = assets.voldemort_idle;
-        
-        if (this.type === 'voldemort') {
-            if (this.state === 'dead') {
-                img = assets.voldemort_walk[0]; 
-            } else if (this.state === 'pain') {
-                img = assets.voldemort_walk[3];
-            } else if (this.state === 'cast') {
-                this.animTimer++;
-                // Slowly cycle attack images (1 to 3)
-                let attackIndex = Math.floor(this.animTimer / 10) % 3;
-                img = assets.voldemort_attack[attackIndex];
-            } else if (this.state === 'walk') {
-                img = assets.voldemort_walk[this.walkCycleIndex % assets.voldemort_walk.length];
-            } else {
-                img = assets.voldemort_idle;
-            }
-        } else { // Morgan
-            if (this.state === 'dead') {
-                img = assets.morgan_walk[0];
-            } else if (this.state === 'pain') {
-                img = assets.morgan_walk[3];
-            } else if (this.state === 'cast') {
-                this.animTimer++;
-                let attackIndex = Math.floor(this.animTimer / 10) % 3;
-                img = assets.morgan_attack[attackIndex];
-            } else if (this.state === 'walk') {
-                img = assets.morgan_walk[this.walkCycleIndex % assets.morgan_walk.length];
-            } else {
-                img = assets.morgan_idle;
-            }
-        }
-
-        let aspect = img.width / img.height;
-        let drawH = this.height;
-        let drawW = drawH * aspect;
-        
-        let dx = this.x - drawW / 2;
-        let dy = this.y - drawH;
-
-        if (this.state === 'dead') {
-            ctx.translate(this.x, this.y);
-            ctx.rotate(mustFlip ? -Math.PI/2 : Math.PI/2);
-            ctx.drawImage(img, -drawW/2, -drawH, drawW, drawH);
-            ctx.restore();
-            return;
-        }
-
-        if (mustFlip) {
-            ctx.scale(-1, 1);
-            dx = -this.x - drawW / 2;
-        }
-
-        ctx.drawImage(img, dx, dy, drawW, drawH);
-        ctx.restore();
-
-        // Draw pulsing Protego Shield Dome
-        if (this.shieldActive) {
-            ctx.save();
-            let pulse = 1 + Math.sin(Date.now() / 100) * 0.05;
-            let pSize = 340 * pulse;
-            let px = this.x - pSize / 2;
-            let py = this.y - pSize / 2 - 120;
-            ctx.globalAlpha = 0.85;
-            ctx.drawImage(assets.protego, px, py, pSize, pSize);
-            ctx.restore();
-        }
-
-        if (this.bubble) {
-            this.bubble.draw();
-        }
-    }
-}
-
-// Spell Projectiles
-class Projectile {
-    constructor(x, y, vx, owner, type) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.owner = owner;
-        this.type = type; 
-        this.width = 70;
-        this.height = 40;
-        this.active = true;
-        this.distanceTravelled = 0;
-    }
-
-    update(target) {
-        this.x += this.vx;
-        this.distanceTravelled += Math.abs(this.vx);
-
-        if (this.x < 0 || this.x > GAME_WIDTH) {
-            this.active = false;
-        }
-
-        let dist = Math.abs(this.x - target.x);
-        if (dist < 50 && Math.abs(this.y - (target.y - 120)) < 130) {
-            this.hit(target);
-        }
-    }
-
-    hit(target) {
-        this.active = false;
-        
-        if (this.type === 'confringo') {
-            audio.playExplosion();
-            target.takeDamage(18, true);
-            entities.push(new ExplosionEffect(this.x, this.y));
-            this.owner.ultCharge += 15; 
-        } 
-        else if (this.type === 'sectumsempra') {
-            if (target.shieldActive) {
-                spawnSplashParticles(this.x, this.y, 'blue', 10);
-            } else {
-                target.takeDamage(24, false);
-                entities.push(new BloodOverlay(target));
-                this.owner.ultCharge += 20;
-            }
-        }
-        else if (this.type === 'expelliarmus') {
-            if (target.shieldActive) {
-                spawnSplashParticles(this.x, this.y, 'blue', 15);
-            } else {
-                target.takeDamage(12, false);
-                target.stunTimer = 210; 
-                audio.playLightning();
-                spawnSplashParticles(this.x, this.y, 'magenta', 20);
-            }
-        }
-    }
-
-    draw() {
-        ctx.save();
-        let img = assets.confringo_proj[0];
-        let isFlipped = this.vx < 0;
-
-        if (this.type === 'confringo') {
-            // Animate Confringo projectile frame (1-2)
-            img = assets.confringo_proj[Math.floor(Date.now() / 100) % 2];
-        } else if (this.type === 'sectumsempra') {
-            if (this.distanceTravelled < 420) {
-                ctx.globalAlpha = 0.05; 
-            }
-            img = assets.sectumsempra; 
-        } else if (this.type === 'expelliarmus') {
-            img = assets.expelliarmus;
-        }
-
-        if (isFlipped) {
-            ctx.scale(-1, 1);
-            ctx.drawImage(img, -this.x - this.width/2, this.y - this.height/2, this.width, this.height);
-        } else {
-            ctx.drawImage(img, this.x - this.width/2, this.y - this.height/2, this.width, this.height);
-        }
-        ctx.restore();
-    }
-}
-
-// Visual Explosion Effect Class
-class ExplosionEffect {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.timer = 24; 
-        this.size = 180;
-    }
-    update() { this.timer--; }
-    draw() {
-        ctx.save();
-        ctx.globalAlpha = this.timer / 24;
-        // Cycle between explosion frames (3-4)
-        let img = (this.timer > 12) ? assets.confringo_exp[0] : assets.confringo_exp[1];
-        ctx.drawImage(img, this.x - this.size/2, this.y - this.size/2, this.size, this.size);
-        ctx.restore();
-    }
-}
-
-// Sectumsempra Blood Splatter Overlay
-class BloodOverlay {
-    constructor(target) {
-        this.target = target;
-        this.timer = 60;
-    }
-    update() {
-        this.timer--;
-    }
-    draw() {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1.0, this.timer / 15);
-        let size = 260;
-        ctx.drawImage(assets.blood, this.target.x - size/2, this.target.y - 200, size, size);
-        ctx.restore();
-    }
-}
-
-// Interactive Particles
-class Particle {
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.vx = (Math.random() * 2 - 1) * 3;
-        this.vy = (Math.random() * 2 - 1) * 3;
-        this.color = color;
-        this.life = 20 + Math.random() * 20;
-    }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.life--;
-    }
-    draw() {
-        ctx.save();
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.life / 40;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, 3 + Math.random() * 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-}
-
-function spawnSplashParticles(x, y, color, count) {
-    for (let i = 0; i < count; i++) {
-        particles.push(new Particle(x, y, color));
-    }
-}
-
-// Game Controllers & Input Bindings
-const keys = {};
-window.addEventListener('keydown', e => {
-    keys[e.key.toLowerCase()] = true;
-    audio.init();
-
-    if (gameRunning && p1.state !== 'dead' && p1.state !== 'stun' && p1.state !== 'pain') {
-        if (e.key === '2' || e.key.toLowerCase() === 'k') {
-            castSpell(p1, p2, 1);
-        }
-        if (e.key === '3' || e.key.toLowerCase() === 'l') {
-            castSpell(p1, p2, 2);
-        }
-        if (e.key === '4' || e.key.toLowerCase() === 'i') {
-            castSpell(p1, p2, 3);
-        }
-    }
-});
-
-window.addEventListener('keyup', e => {
-    keys[e.key.toLowerCase()] = false;
-    
-    if (gameRunning && p1) {
-        if (e.key === '1' || e.key.toLowerCase() === 'j') {
-            p1.shieldActive = false;
-        }
-        if (p1.type === 'voldemort' && (e.key === '3' || e.key.toLowerCase() === 'l')) {
-            if (p1.channelingSpell === 'crucio') p1.stopChannel();
-        }
-        if (p1.type === 'morgan' && (e.key === '2' || e.key.toLowerCase() === 'k')) {
-            if (p1.channelingSpell === 'incendio') p1.stopChannel();
-        }
-    }
-});
-
-function castSpell(caster, target, index) {
-    if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain') return;
-
-    if (caster.type === 'voldemort') {
-        if (index === 1) { // Confringo
-            if (caster.mana >= 25) {
-                caster.mana -= 25;
-                caster.say("Confringo!");
-                let dir = caster.facingRight ? 1 : -1;
-                entities.push(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 14, caster, 'confringo'));
-            }
-        } 
-        else if (index === 2) { // Crucio (Channel)
-            if (caster.mana >= 30) {
-                caster.say("Crucio!");
-                caster.channelingSpell = 'crucio';
-                audio.playLightning();
-            }
-        }
-        else if (index === 3) { // Avada Kedavra (Ult)
-            if (caster.ultCharge >= 100) {
-                caster.ultCharge = 0;
-                caster.say("Avada Kedavra!");
-                audio.playLightning();
-                
-                let dir = caster.facingRight ? 1 : -1;
-                let isHit = true;
-                if (target.isDucking) isHit = false;
-                if (target.y < FLOOR_Y - 50) isHit = false; 
-
-                entities.push({
-                    type: 'avada_beam',
-                    startX: caster.x + dir * 60,
-                    startY: caster.y - 140,
-                    endX: isHit ? target.x : (caster.facingRight ? GAME_WIDTH : 0),
-                    endY: caster.y - 140,
-                    timer: 20
-                });
-
-                if (isHit) {
-                    target.takeDamage(9999, true); 
-                }
-            }
-        }
-    } 
-    else { // Morgan
-        if (index === 1) { // Incendio (Channel)
-            if (caster.mana >= 20) {
-                caster.say("Incendio!");
-                caster.channelingSpell = 'incendio';
-                audio.startFlame();
-            }
-        }
-        else if (index === 2) { // Sectumsempra
-            if (caster.mana >= 20) {
-                caster.mana -= 20;
-                caster.say("Sectumsempra!");
-                let dir = caster.facingRight ? 1 : -1;
-                entities.push(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 21, caster, 'sectumsempra'));
-            }
-        }
-        else if (index === 3) { // Expelliarmus (Ult)
-            if (caster.ultCharge >= 100) {
-                caster.ultCharge = 0;
-                caster.say("Expelliarmus!");
-                let dir = caster.facingRight ? 1 : -1;
-                entities.push(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 25, caster, 'expelliarmus'));
-            }
-        }
-    }
-}
-
-// --- HARD AI TACTICS (Zor Yapay Zeka) ---
-function handleAI(ai, player) {
-    if (ai.state === 'dead' || ai.state === 'pain' || ai.state === 'stun') return;
-
-    let incomingProj = entities.find(e => e instanceof Projectile && e.owner === player);
-    
-    if (incomingProj) {
-        let dist = Math.abs(incomingProj.x - ai.x);
-        
-        if (incomingProj.type !== 'confringo') {
-            if (dist < 320 && ai.mana > 15 && !ai.shieldActive) {
-                ai.shieldActive = true;
-            }
-        } else {
-            if (dist < 400) {
-                if (Math.random() < 0.6) {
-                    ai.vx = ai.facingRight ? -4.5 : 4.5; 
-                } else if (ai.isGrounded) {
-                    ai.vy = -16; 
-                    ai.isGrounded = false;
-                }
-            }
-        }
-    } else {
-        if (ai.shieldActive) {
-            ai.shieldActive = false;
-        }
-    }
-
-    let distToPlayer = Math.abs(ai.x - player.x);
-    
-    if (ai.channelingSpell) {
-        return;
-    }
-
-    if (ai.mana < 30) {
-        ai.vx = ai.facingRight ? -3 : 3;
-    } else {
-        if (distToPlayer > 550) {
-            ai.vx = ai.facingRight ? 3.5 : -3.5;
-        } else if (distToPlayer < 250) {
-            ai.vx = ai.facingRight ? -3.5 : 3.5;
-        } else {
-            ai.vx = 0; 
-            
-            if (Math.random() < 0.015) {
-                if (ai.type === 'voldemort') {
-                    if (ai.ultCharge >= 100) {
-                        castSpell(ai, player, 3); 
-                    } else if (Math.random() < 0.5) {
-                        castSpell(ai, player, 1); 
-                    } else {
-                        castSpell(ai, player, 2); 
-                    }
-                } else {
-                    if (ai.ultCharge >= 100) {
-                        castSpell(ai, player, 3); 
-                    } else if (Math.random() < 0.6) {
-                        castSpell(ai, player, 2); 
-                    } else {
-                        castSpell(ai, player, 1); 
-                    }
-                }
-            }
-        }
-    }
-}
-
-function update() {
-    if (!gameRunning) return;
-
-    if (p1.state !== 'dead' && p1.state !== 'stun' && p1.state !== 'pain') {
-        p1.vx = 0;
-        
-        if (keys['a'] || keys['arrowleft']) {
-            p1.vx = -5;
-        }
-        if (keys['d'] || keys['arrowright']) {
-            p1.vx = 5;
-        }
-
-        if ((keys['w'] || keys['arrowup']) && p1.isGrounded) {
-            p1.vy = -15;
-            p1.isGrounded = false;
-        }
-
-        p1.isDucking = keys['s'] || keys['arrowdown'];
-
-        if (keys['j'] || keys['1']) {
-            if (p1.mana > 5) p1.shieldActive = true;
-        } else {
-            p1.shieldActive = false;
-        }
-    }
-
-    p1.update(p2);
-    p2.update(p1);
-
-    handleAI(p2, p1);
-
-    for (let i = entities.length - 1; i >= 0; i--) {
-        let ent = entities[i];
-        
-        if (ent.type === 'avada_beam') {
-            ent.timer--;
-            if (ent.timer <= 0) entities.splice(i, 1);
-            continue;
-        }
-
-        ent.update(ent.owner === p1 ? p2 : p1);
-        if (!ent.active && ent.timer === undefined) {
-            entities.splice(i, 1);
-        } else if (ent.timer !== undefined && ent.timer <= 0) {
-            entities.splice(i, 1);
-        }
-    }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-        let pt = particles[i];
-        pt.update();
-        if (pt.life <= 0) particles.splice(i, 1);
-    }
-
-    if (p1.state === 'dead' || p2.state === 'dead') {
-        setTimeout(() => {
-            gameRunning = false;
-            document.getElementById('game-over-screen').style.display = 'flex';
-            document.getElementById('game-over-text').innerText = p1.state === 'dead' ? 'YENİLDİNİZ' : 'KAZANDINIZ!';
-        }, 1200);
-    }
-}
-
-function render() {
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    ctx.drawImage(assets.bg, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-    entities.forEach(ent => {
-        if (ent.type === 'avada_beam') {
-            ctx.save();
-            let angle = Math.atan2(ent.endY - ent.startY, ent.endX - ent.startX);
-            let dist = Math.hypot(ent.endX - ent.startX, ent.endY - ent.startY);
-            ctx.translate(ent.startX, ent.startY);
-            ctx.rotate(angle);
-            
-            // Scaled lightning bolt width jitter
-            let scaleY = 1 + (Math.random() * 0.3 - 0.15);
-            ctx.globalAlpha = ent.timer / 20;
-            ctx.drawImage(assets.avadakedavra, 0, -60 * scaleY, dist, 120 * scaleY);
-            ctx.restore();
-        } else {
-            ent.draw();
-        }
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+
+    helpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'flex';
     });
 
-    p1.draw();
-    p2.draw();
-
-    drawContinuousBeams();
-
-    particles.forEach(pt => pt.draw());
-
-    drawHUD();
-}
-
-function drawContinuousBeams() {
-    [p1, p2].forEach(caster => {
-        if (!caster.channelingSpell) return;
-        let opponent = (caster === p1) ? p2 : p1;
-        
-        let startX = caster.x + (caster.facingRight ? 50 : -50);
-        let startY = caster.y - 140;
-        let targetX = opponent.x;
-        let targetY = opponent.y - 120;
-        
-        ctx.save();
-        if (caster.type === 'voldemort' && caster.channelingSpell === 'crucio') {
-            // Spinning Crucio Vortex at Voldemort's hand
-            let swirlSize = 130;
-            ctx.save();
-            ctx.translate(startX, startY);
-            ctx.rotate((Date.now() / 150) % (Math.PI * 2)); 
-            ctx.drawImage(assets.crucio, -swirlSize/2, -swirlSize/2, swirlSize, swirlSize);
-            ctx.restore();
-
-            // Zig zag lightning beam connecting vortex to target
-            ctx.strokeStyle = '#bf55ec';
-            ctx.lineWidth = 4 + Math.random() * 4;
-            ctx.shadowColor = '#bf55ec';
-            ctx.shadowBlur = 15;
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-            
-            let steps = 10;
-            for (let i = 1; i <= steps; i++) {
-                let px = startX + (targetX - startX) * (i / steps);
-                let py = startY + (targetY - startY) * (i / steps);
-                if (i < steps) {
-                    px += (Math.random() * 2 - 1) * 15;
-                    py += (Math.random() * 2 - 1) * 15;
-                }
-                ctx.lineTo(px, py);
-            }
-            ctx.stroke();
-        } 
-        else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
-            // Continuous flickering Incendio flame stream
-            let flameImg = assets.incendio[Math.floor(Date.now() / 100) % 3];
-            let angle = Math.atan2(targetY - startY, targetX - startX);
-            let dist = Math.hypot(targetX - startX, targetY - startY);
-            
-            ctx.save();
-            ctx.translate(startX, startY);
-            ctx.rotate(angle);
-            ctx.drawImage(flameImg, 0, -55, dist, 110);
-            ctx.restore();
-
-            if (Math.random() < 0.4) {
-                spawnSplashParticles(targetX, targetY, 'orange', 2);
-            }
-        }
-        ctx.restore();
+    closeHelpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'none';
     });
-}
-
-function drawHUD() {
-    drawBar(50, 40, 300, 24, p1.hp / 100, '#ff3333', '#550000', 'CAN');
-    drawBar(50, 75, 220, 14, p1.mana / 100, '#3399ff', '#002255', 'MANA');
-    drawBar(50, 100, 220, 10, p1.ultCharge / 100, '#ffcc00', '#554400', 'ULTIMATE');
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 22px Cinzel';
-    ctx.fillText(p1.type.toUpperCase() + " (SEN)", 50, 30);
-
-    drawBar(930, 40, 300, 24, p2.hp / 100, '#ff3333', '#550000', 'CAN', true);
-    drawBar(1010, 75, 220, 14, p2.mana / 100, '#3399ff', '#002255', 'MANA', true);
-    drawBar(1010, 100, 220, 10, p2.ultCharge / 100, '#ffcc00', '#554400', 'ULTIMATE', true);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 22px Cinzel';
-    ctx.textAlign = 'right';
-    ctx.fillText(p2.type.toUpperCase() + " (AI)", 1230, 30);
-    ctx.textAlign = 'left'; 
-}
-
-function drawBar(x, y, w, h, pct, fgColor, bgColor, label, alignRight = false) {
-    ctx.save();
-    
-    let drawX = x;
-    if (alignRight) {
-        drawX = 1280 - x - w;
-    }
-
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(drawX, y, w, h);
-
-    ctx.fillStyle = fgColor;
-    ctx.fillRect(drawX, y, w * pct, h);
-
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(drawX, y, w, h);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px Arial';
-    ctx.textBaseline = 'middle';
-    if (alignRight) {
-        ctx.textAlign = 'right';
-        ctx.fillText(label, drawX - 10, y + h/2);
-    } else {
-        ctx.textAlign = 'left';
-        ctx.fillText(label, drawX + w + 10, y + h/2);
-    }
-    ctx.restore();
-}
-
-function tick() {
-    update();
-    render();
-    requestAnimationFrame(tick);
-}
-
-if ('ontouchstart' in window) {
-    document.getElementById('mobile-controls').style.display = 'flex';
-    setupTouchListeners();
-}
-
-function setupTouchListeners() {
-    const bindTouch = (id, key) => {
-        let el = document.getElementById(id);
-        el.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            keys[key] = true;
-            audio.init();
-            if (key === 'k') castSpell(p1, p2, 1);
-            if (key === 'l') castSpell(p1, p2, 2);
-            if (key === 'i') castSpell(p1, p2, 3);
-        });
-        el.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            keys[key] = false;
-            if (key === 'j') p1.shieldActive = false;
-            if (p1.type === 'voldemort' && key === 'l') p1.stopChannel();
-            if (p1.type === 'morgan' && key === 'k') p1.stopChannel();
-        });
-    };
-
-    bindTouch('btn-up', 'w');
-    bindTouch('btn-left', 'a');
-    bindTouch('btn-right', 'd');
-    bindTouch('btn-down', 's');
-    bindTouch('btn-prot', 'j');
-}
-
-const cardVold = document.getElementById('card-voldemort');
-const cardMorgan = document.getElementById('card-morgan');
-const startBtn = document.getElementById('start-btn');
-const overlay = document.getElementById('selection-overlay');
-
-cardVold.addEventListener('click', () => {
-    playerChar = 'voldemort';
-    cardVold.classList.add('selected');
-    cardMorgan.classList.remove('selected');
-});
-
-cardMorgan.addEventListener('click', () => {
-    playerChar = 'morgan';
-    cardMorgan.classList.add('selected');
-    cardVold.classList.remove('selected');
-});
-
-cardVold.classList.add('selected');
-
-startBtn.addEventListener('click', () => {
-    if (playerChar === 'voldemort') {
-        p1 = new Character('voldemort', true, 200);
-        p2 = new Character('morgan', false, 1080);
-    } else {
-        p1 = new Character('morgan', true, 200);
-        p2 = new Character('voldemort', false, 1080);
-    }
-
-    if (playerChar === 'voldemort') {
-        document.getElementById('btn-sp1').innerHTML = '<span>Confringo</span><small>K / 2</small>';
-        document.getElementById('btn-sp2').innerHTML = '<span>Crucio</span><small>L / 3</small>';
-    } else {
-        document.getElementById('btn-sp1').innerHTML = '<span>Incendio</span><small>K / 2</small>';
-        document.getElementById('btn-sp2').innerHTML = '<span>Sectum</span><small>L / 3</small>';
-    }
-
-    overlay.style.opacity = 0;
-    setTimeout(() => {
-        overlay.style.display = 'none';
-        gameRunning = true;
-        audio.init();
-    }, 500);
-});
-
-document.getElementById('restart-btn').addEventListener('click', () => {
-    document.getElementById('game-over-screen').style.display = 'none';
-    overlay.style.display = 'flex';
-    overlay.style.opacity = 1;
-    entities = [];
-    particles = [];
-});
-
-tick();
 </script>
+
+<!-- ES6 Standartlarında Ana JS Modülünün İçe Aktarılması -->
+<script type="module" src="src/main.js"></script>
 
 </body>
 </html>
