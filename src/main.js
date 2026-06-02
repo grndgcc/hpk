@@ -1,29 +1,20 @@
-# Let's generate the complete, fully fixed src/main.js code
-# Key fixes in main.js:
-# 1. No more 'export const particles = [];' here. Instead we do: import { particles } from './engine.js';
-# 2. window.castSpell = castSpell; to allow other modules to trigger spells on the window.
-# 3. Clean click listeners that interact directly with the 'game' (GameOrchestrator) instance and call game.startDuel(playerChar);
-
-main_js_fixed = """/**
+/**
  * ============================================================================
  * HOGWARTS DUEL - CORE COORDINATOR & GAME ENGINE ORCHESTRATOR
  * ============================================================================
- * Bu dosya, oyunun merkezi işlem birimidir. Oyun durum makinelerini (FSM),
- * delta-time tabanlı oyun döngüsünü, görsel ölçeklendirmeyi, varlık (asset)
- * yükleme süreçlerini ve diğer tüm alt modüllerin (Fizik, Yapay Zeka, Ses,
- * Girdi, Çizim) koordinasyonunu yönetir.
- * 
- * Modüler Mimari Tasarımı (ES6):
- * - Alt sınıflar ve yöneticiler kendi dosyalarından yüklenir.
- * - Çizim ve fizik güncellemeleri ekran kartının yenilenme hızından bağımsızdır.
- * - Tüm koordinasyon 1280x720 sanal çözünürlük düzleminde hesaplanır.
  */
 
 // Alt Modüllerin İçe Aktarılması
 import { Engine, particles } from './engine.js';
 import { InputHandler } from './input.js';
 import { Character } from './character.js';
-import { SpellManager } from './spell.js';
+
+// ESKİ HALİ:
+// import { SpellManager } from './spell.js';
+
+// YENİ GÜNCELLENMİŞ HALİ:
+import { SpellManager, Projectile } from './spell.js';
+
 import { AIManager } from './ai.js';
 import { AudioController } from './audio.js';
 
@@ -778,9 +769,3 @@ if (cardVold && cardMorgan && startBtn && overlay) {
         }, 500);
     });
 }
-"""
-
-with open("src/main.js", "w", encoding="utf-8") as f:
-    f.write(main_js_fixed)
-
-print("src/main.js successfully overwritten with final bug-free code.")
