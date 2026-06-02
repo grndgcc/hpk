@@ -626,7 +626,10 @@ export class SpellManager {
                 ctx.translate(startX, startY);
                 ctx.rotate((Date.now() / 150) % (Math.PI * 2));
                 ctx.globalAlpha = 0.9;
-                ctx.drawImage(this.game.assets.images.crucio, -swirlSize / 2, -swirlSize / 2, swirlSize, swirlSize);
+                const swirlImg = this.game.assets.images.crucio;
+if (swirlImg && swirlImg.width > 0) {
+    ctx.drawImage(swirlImg, -swirlSize / 2, -swirlSize / 2, swirlSize, swirlSize);
+}
                 ctx.restore();
 
                 if (!opponent.shieldActive) {
