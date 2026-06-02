@@ -478,26 +478,31 @@ export class SpellManager {
     /**
      * Madde 6: Sadece iki nihai büyü (Avada Kedavra vs Expelliarmus) çarpışırsa tetiklenecek Priori Incantatem köprüsü.
      */
+
+    /**
+     * Avada Kedavra yeşil yıldırımları ateşlendiğinde çağrılır.
+     * Havada süzülen aktif bir Expelliarmus mermisi varsa yıldırım mermiyi tam ortada yakalar.
+     */
     triggerAvadaBeam(startX, startY, endX, endY) {
-        // Havada süzülen aktif bir nihai Expelliarmus ultisi var mı tara
+        // Havada süzülen aktif bir Expelliarmus ulti mermisi var mı tara
         const expellUlt = this.projectiles.find(p => p.type === 'expelliarmus' && p.active);
 
         if (expellUlt) {
-            // Madde 6: Büyüler tam orta noktada Priori Incantatem ile çarpışır!
+            // İki ulti tam orta noktada Priori Incantatem ile çarpışır!
             const clashX = (startX + expellUlt.x) / 2;
             const clashY = startY; // İki büyü de omuz hizasında (y - 210)
 
-            // Morgan nihai büyüsünü yok et
+            // Morgan'ın nihai büyüsünü devre dışı bırak
             expellUlt.active = false;
 
-            // Avada Kedavra yeşil ışınını çarpışma noktasına kadar kısıtla
+            // Avada Kedavra yeşil ışınını çarpışma noktasına kadar kısıtlayarak çiz
             this.addEffect(new AvadaKedavraBeam(startX, startY, clashX, clashY, this.game));
 
-            // Dev kozmik sarsıntı ve ses patlaması
+            // Dev kozmik sarsıntı ve patlama sesi tetiklenir
             this.game.triggerScreenShake(15, 0.45);
             this.game.audio.playExplosion();
 
-            // Yeşil ve pembe neon patlama parçacıklarını etrafa saç
+            // Yeşil ve kırmızı neon patlama parçacıklarını çarpışma noktasından etrafa saç
             for (let i = 0; i < 40; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 4 + Math.random() * 8;
