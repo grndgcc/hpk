@@ -1,16 +1,16 @@
 /**
  * ============================================================================
- * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ (1. AŞAMA)
+ * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ (YENİ SÜRÜM)
  * ============================================================================
  * Bu dosya, düellodaki büyücülerin fizik simülasyonlarını, can/mana/ulti durumlarını,
  * hasar alma, zehir yükü biriktirme ve gelişmiş animasyon kilitlerini yönetir.
  * 
- * 1. Aşama Güncellemeleri:
- * - Süzülmeli yüksek zıplama mekaniği eklendi (vy ve yerçekimi optimize edildi).
- * - Büyü sözü söyleme duraklamasını sağlayan castDelayTimer entegre edildi.
- * - Saldırı animasyonlarının loop etmeyip son karede donması sağlandı.
- * - Voldemort kalkanının yön (mirror/flip) hatası giderildi.
- * - Dengeli pacing için can sınırları artırıldı ve pasif ulti dolumu eklendi.
+ * Görsel ve Fiziksel Geliştirmeler:
+ * - Zıplama ivmesi -19 hıza çıkarıldı ve süzülme fiziği yumuşatıldı.
+ * - Saldırı animasyonlarının sürekli loop etmesi engellendi, son karede kilitleniyor.
+ * - Voldemort'un Protego kalkanının yön (mirror/flipX) ve el hizalama offseti düzeltildi.
+ * - Sectumsempra atılırken karakterin büyü yapma duruşunda kalması sağlandı.
+ * - Can değerleri 250 seviyesine dengelendi ve pasif ulti dolum sistemi kuruldu.
  */
 
 import { Engine, ParticleFactory } from './engine.js';
@@ -135,10 +135,10 @@ export class Character {
         this.painTimer = 0;
         this.stunTimer = 0;
 
-        // Madde 10: Büyü sözü söyleme ve animasyon duraklatma sayacı
+        // Büyü sözü söyleme ve animasyon duraklatma sayacı
         this.castDelayTimer = 0; 
 
-        // Madde 3: Saldırı animasyonunun loop etmeyip son karede donmasını sağlayan süreölçer
+        // Saldırı animasyonunun loop etmeyip son karede donmasını sağlayan süreölçer
         this.castTimer = 0;
 
         // Büyü ve Kalkan Bayrakları
@@ -245,12 +245,12 @@ export class Character {
         // Her zaman rakibe doğru yönel (Dövüş oyunu standardı)
         this.facingRight = (opponent.x > this.x);
 
-        // Madde 11: Ultimate atılmasını kolaylaştırmak için saniyede pasif ulti birikimi eklendi
+        // Saniyede pasif ulti birikimi eklendi
         if (this.state !== 'dead') {
             this.ultCharge = Math.min(100, this.ultCharge + 2.0 * dt); // Saniyede pasif +2.0 ulti şarjı
         }
 
-        // Madde 10: Büyü sözü söyleme gecikmesi sayacını işlet
+        // Büyü sözü söyleme gecikmesi sayacını işlet
         if (this.castDelayTimer > 0) {
             this.castDelayTimer -= dt;
             this.vx = 0; // Büyü hazırlığı sırasında karakterin yürümesini engelle
@@ -332,7 +332,7 @@ export class Character {
         }
 
         // 6. Fiziksel Yerçekimi ve Zıplama İvmelenmesi
-        // Madde 4: Zıplayarak mermilerden kaçabilmek için dikey fizik süzülme çarpanı yumuşatıldı
+        // Zıplayarak mermilerden kaçabilmek için dikey fizik süzülme çarpanı yumuşatıldı
         if (!this.isGrounded) {
             this.vy += this.config.GRAVITY * 55 * dt; // Süzülme hissi için yerçekimi katsayısı ayarlandı
             this.y += this.vy * 60 * dt;
@@ -351,7 +351,7 @@ export class Character {
         this.x = Math.max(80, Math.min(this.config.VIRTUAL_WIDTH - 80, this.x));
 
         // 7. Durum Öncelik Hiyerarşisi (State Machine Resolver)
-        // Madde 10: castDelayTimer sayacı aktifken karakterin cast durumunda kalması sağlandı (Sectumsempra düzeltmesi)
+        // castDelayTimer sayacı aktifken karakterin cast durumunda kalması sağlandı (Sectumsempra düzeltmesi)
         if (this.state !== 'pain' && this.state !== 'dead' && this.state !== 'stun') {
             if (this.castDelayTimer > 0 || this.shieldActive || this.channelingSpell) {
                 this.state = 'cast';
@@ -362,7 +362,7 @@ export class Character {
             }
         }
 
-        // Madde 3: Saldırı animasyonunun son karede kilitlenmesi için castTimer takibi
+        // Saldırı animasyonunun son karede kilitlenmesi için castTimer takibi
         if (this.state === 'cast') {
             this.castTimer += dt;
         } else {
@@ -408,8 +408,8 @@ export class Character {
             } else if (this.state === 'pain') {
                 img = this.game.assets.images.voldemortwalk4 || standImg; // Darbe alma karesi
             } else if (this.state === 'cast') {
-                // Madde 3: Saldırı animasyonunun loop etmeyip son karede (Frame 3) donma mantığı
-                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.1)); // 100ms'de bir kare atlar, maksimum 2. indekste (Frame 3) donar
+                // Saldırı animasyonunun loop etmeyip son karede (Frame 3) donma mantığı
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.12)); // 120ms'de bir kare atlar, maksimum 2. indekste (Frame 3) donar
                 img = this.game.assets.images[`voldemortattack${attackIndex + 1}`] || standImg;
             } else if (this.state === 'walk') {
                 img = this.game.assets.images[`voldemortwalk${this.walkCycleIndex + 1}`] || standImg;
@@ -420,8 +420,8 @@ export class Character {
             } else if (this.state === 'pain') {
                 img = this.game.assets.images.morganwalk4 || standImg;
             } else if (this.state === 'cast') {
-                // Madde 3: Morgan saldırı animasyonu son karesinde sabitlenir
-                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.1));
+                // Morgan saldırı animasyonu son karesinde sabitlenir
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.12));
                 img = this.game.assets.images[`morganattack${attackIndex + 1}`] || standImg;
             } else if (this.state === 'walk') {
                 img = this.game.assets.images[`morganwalk${this.walkCycleIndex + 1}`] || standImg;
@@ -473,7 +473,7 @@ export class Character {
             const pulse = 1 + Math.sin(Date.now() / 100) * 0.05; // Titreşim dalgası
             const pSize = 340 * pulse;
             
-            // Madde 8: Voldemort'un ve Morgan'ın Protego kalkanının yön (mirror/flipX) ve el hizalaması düzeltildi
+            // Voldemort'un ve Morgan'ın Protego kalkanının yön (mirror/flipX) ve el hizalaması düzeltildi
             const shieldOffset = this.facingRight ? 60 : -60;
             const px = this.x + shieldOffset;
             const py = this.y - 145; // Göğüs ve asa hizası merkezi
@@ -486,7 +486,7 @@ export class Character {
             ctx.restore();
         }
 
-        // 11. Konuşma Balonunu Çiz
+        // Konuşma Balonunu Çiz
         if (this.bubble) {
             this.bubble.draw(ctx);
         }
