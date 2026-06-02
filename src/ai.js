@@ -1,18 +1,21 @@
 /**
  * ============================================================================
- * HOGWARTS DUEL - TAKTİKSEL YAPAY ZEKA (HARD AI) SİSTEMİ
+ * HOGWARTS DUEL - TAKTİKSEL YAPAY ZEKA (ADVANCED TACTICAL AI) (5. AŞAMA)
  * ============================================================================
- * Bu sınıf; rakip büyücünün (P2) karar alma ağaçlarını yönetir. AI, robotik ve
- * anında kalkan açan hileli bir yapı yerine; insan sinirsel reaksiyon gecikmesini
- * simüle eden bir gecikme kuyruğu (Reaction Queue) kullanır.
+ * Bu sınıf; rakip büyücünün (AI) tüm karar alma, mermi yörünge simülasyonu,
+ * yer hedefli tehlikelerden kaçınma, kalkan parry zamanlamaları ve akıllı
+ * kombo cezalandırma mekaniklerini yönetir.
  * 
- * Modüler Mimari Tasarımı (ES6):
- * - Maç skoruna göre reaksiyon sürelerini dinamik daraltır (Kaybederken güçlenme).
- * - Oyuncunun kalkan durumuna göre büyü kombinasyonlarını gerçek zamanlı değiştirir.
+ * 5. Aşama Güncellemeleri:
+ * - 120 kare ileriye dönük CPU yörünge simülasyon motoru kuruldu.
+ * - Confringo uyarı çemberinden zıplayarak veya yürüyerek kaçınma eklendi.
+ * - Oyuncunun büyü okuma gecikmesini yakalayıp büyü kesme (interrupt) taktiği yazıldı.
+ * - Milisaniyelik Perfect Protego Parry sistemi entegre edildi.
+ * - Karakter tipine göre özel savaş mesafesi (spacing) yapay zekası yazıldı.
  */
 
 import { Engine, Vector2 } from './engine.js';
-import { Projectile } from './spell.js';
+import { ConfringoArea } from './spell.js';
 
 class DelayedAction {
     /**
@@ -30,8 +33,8 @@ export class AIManager {
         this.game = game;
 
         // Karar alma ve eylem zamanlayıcıları
-        this.decisionTimer = 0;          // Genel taktiksel durum analiz periyodu (Örn: 200ms)
-        this.decisionInterval = 0.20;     // 0.20 saniyede bir stratejik rota çizilir
+        this.decisionTimer = 0;          // Genel taktiksel durum analiz periyodu
+        this.decisionInterval = 0.15;     // CPU yükü gözetmeksizin 150ms'de bir stratejik durum analizi yapılır
         
         // İnsansı reaksiyon gecikmeleri kuyruğu
         this.reactionQueue = [];
@@ -43,10 +46,8 @@ export class AIManager {
 
     /**
      * Eylem kuyruğuna gecikmeli bir hamle ekler.
-     * Bu sayede AI, oyuncu tuşa bastığı an robotik olarak değil, insansı bir gecikmeyle tepki verir.
      */
     queueAction(delay, callback) {
-        // Aynı türden mükerrer kalkan tetiklemelerini önlemek için kontrol et
         this.reactionQueue.push(new DelayedAction(delay, callback));
     }
 
@@ -58,27 +59,27 @@ export class AIManager {
     }
 
     /**
-     * Yapay zekanın maçı kaybediyor olması durumunda odaklanmasını artıran
-     * dinamik reaksiyon süresi hesaplayıcı.
+     * Maçın gidişatına göre dinamik olarak tepki süresi hesaplar.
+     * AI kaybederken veya canı azken odaklanması (reaksiyon hızı) maksimuma ulaşır.
      */
-    getReactionDelay() {
+    getReactionDelay(ai) {
         const playerScore = this.game.p1Score;
         const aiScore = this.game.p2Score;
 
-        // Taban reaksiyon süresi: 220ms (Ortalama insan hızı)
-        let baseDelay = 0.22;
+        let baseDelay = 0.20; // Standart reaksiyon süresi (200ms)
 
+        // AI raunt gerideyse reaksiyon hızı 110ms'ye kadar iner
         if (playerScore === 1 && aiScore === 0) {
-            // AI maçı kaybediyorsa reaksiyon süresi 130ms'ye kadar iner (Aşırı odaklanmış mod)
-            baseDelay = 0.13;
-        } else if (playerScore === 0 && aiScore === 1) {
-            // AI öndeyse reaksiyonu hafif gevşeterek oyuncuya şans tanı (260ms)
-            baseDelay = 0.26;
+            baseDelay = 0.11;
         }
 
-        // Reaksiyona hafif insansı sapmalar ekle (+- 30ms)
-        const jitter = (Math.random() * 0.06) - 0.03;
-        return Math.max(0.08, baseDelay + jitter);
+        // Kendi canı %30'un altındaysa adrenalin bonusuyla reaksiyon hızlanır
+        if (ai.hp < 75) {
+            baseDelay -= 0.04;
+        }
+
+        const jitter = (Math.random() * 0.04) - 0.02; // +-20ms insansı sapma
+        return Math.max(0.06, baseDelay + jitter);
     }
 
     /**
@@ -91,7 +92,7 @@ export class AIManager {
             return;
         }
 
-        // 1. Gecikmeli Tepki (Reaction Queue) Sayacının İşletilmesi
+        // 1. Gecikmeli Tepki Kuyruğunun İşletilmesi
         for (let i = this.reactionQueue.length - 1; i >= 0; i--) {
             const action = this.reactionQueue[i];
             action.delay -= dt;
@@ -101,214 +102,249 @@ export class AIManager {
             }
         }
 
-        // 2. DEFANSİF REAKSİYON KATMANI (Her Karede Dinamik Tehdit Taraması)
+        // 2. DEFANSİF REAKSİYON KATMANI (Her Karede CPU Gelecek Öngörü Simülasyonu)
         this.handleReactiveDefense(dt, ai, player);
 
-        // 3. OFANSİF STRATEJİ KATMANI (Belirli periyotlarla tetiklenir - CPU Optimizasyonu)
+        // 3. OFANSİF STRATEJİ KATMANI (Belirli periyotlarla tetiklenir)
         this.decisionTimer += dt;
         if (this.decisionTimer >= this.decisionInterval) {
             this.decisionTimer -= this.decisionInterval;
             this.handleTacticalOffense(ai, player);
         }
 
-        // Kaçınma süresi bittiğinde yön ivmesini sıfırla
+        // Kaçınma depar süresi bittiğinde yön ivmesini sıfırla
         if (this.evadeTimer > 0) {
             this.evadeTimer -= dt;
-            ai.vx = this.evadeDirection * 4.5;
+            ai.vx = this.evadeDirection * 5.0;
         }
     }
 
     /**
-     * Tehdit Algılama ve Tepki Mekanizması (Saniyede 60 Kez Taranır)
+     * Madde 9: Gelecek Öngörülü Yoğun CPU Tehdit Analiz ve Parry Motoru
      */
     handleReactiveDefense(dt, ai, player) {
-        // Havada süzülen projektilleri tara
+        // --- 1. KISIM: YERDEKİ CONFRINGO UYARI ÇEMBERİ ANALİZİ ---
+        // Yerde parlayan bir Confringo rünü var mı tara
+        const confringoThreat = this.game.spells.effects.find(eff => eff instanceof ConfringoArea && !eff.exploded);
+        if (confringoThreat) {
+            const distToExplosion = Math.abs(ai.x - confringoThreat.x);
+            
+            // Eğer AI tehlike alanının (150px yarıçap) içindeyse kaçınma planla
+            if (distToExplosion < 140) {
+                // Patlamaya kalan süre kritik seviyedeyse zıplayarak veya kaçarak dodgela
+                if (confringoThreat.life < 0.4 && ai.isGrounded) {
+                    this.clearReactionQueue();
+                    
+                    if (Math.random() < 0.70) {
+                        // %70 ihtimalle süzülmeli yüksek zıplamayla kaçınır
+                        ai.vy = -19;
+                        ai.isGrounded = false;
+                    } else {
+                        // %30 ihtimalle ters yöne depar atarak kaçınır
+                        this.evadeTimer = 0.35;
+                        this.evadeDirection = ai.x > confringoThreat.x ? 1 : -1;
+                    }
+                }
+            }
+        }
+
+        // --- 2. KISIM: CPU MERMİ YÖRÜNGE SİMÜLASYONU VE PERFECT PARRY ---
         const activeProjectiles = this.game.spells.projectiles;
         
-        // AI'a doğru gelen en yakın tehlikeli mermiyi bul
+        // Yapay zekaya doğru yaklaşan en yakın tehlikeli mermiyi bul
         const threat = activeProjectiles.find(proj => {
             const isMovingTowardsAI = (proj.vx < 0 && ai.x < proj.x) || (proj.vx > 0 && ai.x > proj.x);
             return proj.owner === player && isMovingTowardsAI;
         });
 
         if (threat) {
-            const distance = Math.abs(threat.x - ai.x);
+            // Merminin gelecekteki 120 karesini sanal döngüde önden çalıştır
+            let tempX = threat.x;
+            let tempY = threat.y;
+            let stepsToCollide = -1; // Çarpışmaya kalan kare sayısı
 
-            if (threat.type === 'confringo') {
-                // Confringo korunamaz bir büyüdür! Kalkan açmak yerine kaçınma eylemi planla
-                if (distance < 450 && ai.isGrounded && this.evadeTimer <= 0) {
-                    this.clearReactionQueue(); // Diğer planları iptal et
-                    
-                    if (Math.random() < 0.65) {
-                        // %65 ihtimalle zıplayarak patlamanın üzerinden atla
-                        ai.vy = -16;
-                        ai.isGrounded = false;
-                    } else {
-                        // %35 ihtimalle ters yöne doğru hızlıca geri çekil
-                        this.evadeTimer = 0.4; // 0.4 saniye boyunca kaçınır
-                        this.evadeDirection = ai.facingRight ? -1 : 1;
-                    }
+            for (let step = 0; step < 120; step++) {
+                tempX += threat.vx * 60 * 0.016; // 60 FPS fizikli kare adımları
+
+                // Yapay zekanın hasar kutusu sınırları
+                const targetH = ai.isDucking ? 150 : 280;
+                const targetW = ai.width || 80;
+                const targetX = ai.x - targetW / 2;
+                const targetY = ai.y - targetH;
+
+                // Merminin o karedeki sınırları
+                const projX = tempX - threat.width / 2;
+                const projY = tempY - threat.height / 2;
+
+                if (Engine.rectCollision(projX, projY, threat.width, threat.height, targetX, targetY, targetW, targetH)) {
+                    stepsToCollide = step;
+                    break; // Çarpışma anı bulundu, simülasyonu sonlandır
                 }
-            } else {
-                // Korunabilir büyüler (Sectumsempra, Expelliarmus)
-                // Mermi kritik yaklaşma mesafesindeyse ve kalkan kapalıysa reaksiyon süresi kuyrukla tetiklenir
-                if (distance < 600 && !ai.shieldActive && this.reactionQueue.length === 0) {
-                    const delay = this.getReactionDelay();
-                    this.queueAction(delay, () => {
-                        // Kalkanı açmak için yeterli mana var mı kontrol et
-                        if (ai.mana > 15) {
+            }
+
+            // Eğer simülasyon merminin kesinlikle çarpacağını tespit ettiyse:
+            if (stepsToCollide !== -1) {
+                // Mermi yüksekten uçuyorsa eğilerek atlat (ducking)
+                if (threat.y < 440 && stepsToCollide < 20) {
+                    ai.isDucking = true;
+                    return;
+                }
+
+                // Mermi gövde hizasındaysa ve kalkan kapalıysa:
+                if (!ai.shieldActive) {
+                    // Kusursuz Bloklama (Perfect Parry): Çarpışmaya 8 kareden az (130ms) kala kalkanı tetikle!
+                    if (stepsToCollide < 8) {
+                        if (ai.mana > 12) {
                             ai.shieldActive = true;
                         }
-                    });
+                    }
                 }
             }
         } else {
-            // Ortada havada süzülen aktif bir mermi yoksa kalkanı açık tutmayı bırak (Mana tasarrufu!)
-            // Eğer oyuncu sürekli hasar veren Crucio veya Incendio kanalize etmiyorsa kalkan kapatılır
+            // Havada aktif bir tehdit kalmadıysa kalkanı anında kapatarak manayı koru
             if (ai.shieldActive && !player.channelingSpell) {
-                // Kalkanı kapatmak için de küçük bir insansı kapatma gecikmesi ekle (150ms)
-                if (this.reactionQueue.length === 0) {
-                    this.queueAction(0.15, () => {
-                        ai.shieldActive = false;
-                    });
-                }
+                ai.shieldActive = false;
             }
         }
 
-        // Oyuncu Crucio veya Incendio kanalize ediyorsa ve menzildeyse kalkan açmaya çalış
+        // Oyuncu Crucio veya Incendio kanalize ediyorsa ve menzildeyse kalkanı açık tut
         if (player.channelingSpell && Math.abs(player.x - ai.x) < 750) {
-            if (!ai.shieldActive && ai.mana > 20 && this.reactionQueue.length === 0) {
-                const delay = this.getReactionDelay();
-                this.queueAction(delay, () => {
-                    ai.shieldActive = true;
-                });
+            if (!ai.shieldActive && ai.mana > 20) {
+                ai.shieldActive = true;
             }
         }
     }
 
     /**
-     * Taktiksel Saldırı ve Mesafe Yönetimi (Milisaniyede Bir Analiz Edilir)
+     * Taktiksel Saldırı, Pozisyon Alma ve Alan Cezalandırma Yapay Zekası
      */
     handleTacticalOffense(ai, player) {
         const dist = Math.abs(ai.x - player.x);
 
-        // Kanalize büyü devam ediyorsa hareketi kilitle
+        // Kanalize büyü devam ediyorsa hareketi dondur
         if (ai.channelingSpell) {
             return;
         }
 
-        // 1. Durum: Mana Kritik Seviyede (< 30) - Defansif Kaçış Modu
-        if (ai.mana < 30) {
+        // 1. DURUM: DEPLASMAN VE DEFANSİF turtle MODU (Mana < 25)
+        if (ai.mana < 25) {
             ai.shieldActive = false;
-            ai.vx = ai.facingRight ? -3.5 : 3.5; // Geriye kaçarak mana yenilenmesini bekle
+            ai.vx = ai.facingRight ? -4.0 : 4.0; // Geri çekil
+            ai.isDucking = true; // Hurtbox'ı daraltarak menzilli mermilerin üstünden geçmesini bekle
             return;
+        } else {
+            ai.isDucking = false;
         }
 
-        // 2. Durum: Mana Yeterli - Mesafe Ayarlama (Combat Spacing)
-        // AI, oyuncuyla arasındaki mesafeyi her zaman 350px ile 600px "tatlı noktasında" tutmak ister
-        if (this.evadeTimer <= 0) {
-            if (dist > 650) {
-                // Oyuncu çok uzaktaysa üzerine yürü
-                ai.vx = ai.facingRight ? 3.5 : -3.5;
-            } else if (dist < 220) {
-                // Oyuncu çok yakınsa geriye kaç (Menzilli avantaj)
-                ai.vx = ai.facingRight ? -3.5 : 3.5;
+        // 2. DURUM: KOMBO VE BÜYÜ İPTAL CEZALANDIRMASI (INTERRUPT)
+        // Madde 10: Eğer oyuncu büyü sözü söylüyorsa (gecikme kilitliyse), büyü fırlatarak onu havada kes!
+        if (player.castDelayTimer > 0.1 && dist < 750) {
+            if (ai.type === 'voldemort') {
+                // Voldemort Confringo'yu oyuncunun bastığı yere anında dikerek kilitler
+                this.triggerSpell(ai, player, 1);
+                return;
             } else {
-                // Konum mükemmel, dur ve saldırı planla
-                ai.vx = 0;
+                // Morgan hızlı bir Sectumsempra mermisi fırlatıp oyuncunun büyü okumasını havada böler
+                this.triggerSpell(ai, player, 2);
+                return;
+            }
+        }
 
-                // Saldırı Büyüsü Fırlatma Karar Algoritmaları
+        // 3. DURUM: AKILLI SAVAŞ MESAFESİ (SPACING SENSORS)
+        // Karakter tiplerine ve alev/büyü menzillerine göre optimum alan koruma
+        let targetMinDist = 450;
+        let targetMaxDist = 650;
+
+        if (ai.type === 'morgan') {
+            // Morgan, yeni 500px Incendio sınırını bildiği için daha yakında (350px-480px) durmak ister
+            targetMinDist = 330;
+            targetMaxDist = 480;
+        }
+
+        if (this.evadeTimer <= 0) {
+            if (dist > targetMaxDist) {
+                // Rakip çok uzaktaysa üzerine yürü
+                ai.vx = ai.facingRight ? 3.8 : -3.8;
+            } else if (dist < targetMinDist) {
+                // Rakip çok yakınsa geri adımlarla mesafeyi aç
+                ai.vx = ai.facingRight ? -3.8 : 3.8;
+            } else {
+                // Spacing kusursuz hizada, dur ve ofansif rotasyona başla
+                ai.vx = 0;
                 this.executeSpellAI(ai, player);
             }
         }
     }
 
     /**
-     * Karakter tiplerine ve oyuncu durumlarına göre en verimli büyüyü seçer.
+     * Karakter tipine özel akıllı büyü rotasyon sistemi
      */
     executeSpellAI(ai, player) {
-        // Oyuncu zaten yere serilmiş veya darbe yiyorsa bekle
         if (player.state === 'dead' || player.state === 'pain') return;
 
         if (ai.type === 'voldemort') {
-            // --- VOLDEMORT AI STRATEJİSİ ---
+            // --- VOLDEMORT KOMBO SİSTEMİ ---
             
-            // 1. Senaryo: Ultimate (Avada Kedavra) Hazır!
+            // Ultimate (Avada Kedavra) hazır durumdaysa:
             if (ai.ultCharge >= 100) {
-                // Oyuncunun havadayken veya eğilirken ıskalamamak için, oyuncu tam ayakta/yerdeyken at!
-                if (!player.isDucking && player.isGrounded) {
-                    this.triggerSpell(ai, player, 3); // Avada Kedavra
+                // Oyuncu havada zıplamıyorsa veya eğilmiyorsa (ıskalama payını sıfıra indir) at!
+                if (!player.isDucking && player.isGrounded && player.castDelayTimer === 0) {
+                    this.triggerSpell(ai, player, 3); // Avada Kedavra lanetini oku
                     return;
                 }
             }
 
-            // 2. Senaryo: Oyuncu Kalkanını (Protego) kaldırmış durumda bekliyor!
+            // Oyuncu kalkanını (Protego) kaldırmış kilitli bekliyorsa:
             if (player.shieldActive) {
-                // Kalkanı delen alan hasarlı Confringo fırlat (Kalkanı tamamen cezalandır!)
+                // Kalkanı delip hasar veren yer hedefli Confringo rününü dik
                 this.triggerSpell(ai, player, 1);
             } else {
-                // Oyuncunun kalkanı kapalı ve savunmasızsa:
-                if (Math.random() < 0.5) {
-                    this.triggerSpell(ai, player, 2); // Crucio ile kilitle ve acı çektir
+                // Kalkanı kapalıysa:
+                if (Math.random() < 0.45) {
+                    this.triggerSpell(ai, player, 2); // Crucio ile kilitleyip saniyede 16 hasar ver
                 } else {
-                    this.triggerSpell(ai, player, 1); // Confringo ile bursts hasar ver
+                    this.triggerSpell(ai, player, 1); // Confringo patlaması yerleştir
                 }
             }
         } else {
-            // --- MORGAN AI STRATEJİSİ ---
+            // --- MORGAN KOMBO SİSTEMİ ---
             
-            // 1. Senaryo: Ultimate (Expelliarmus) Hazır!
+            // Ultimate (Expelliarmus) hazır durumdaysa:
             if (ai.ultCharge >= 100) {
-                this.triggerSpell(ai, player, 3); // Expelliarmus (Stun) fırlat
+                this.triggerSpell(ai, player, 3); // 3.5s kilitleyen sersemletmeyi yolla
                 return;
             }
 
-            // 2. Senaryo: Oyuncu kalkanını açık tutuyor
+            // Oyuncu kalkanını açık tutuyorsa:
             if (player.shieldActive) {
-                // Kalkanı zorlamak için sürekli alev dalgası (Incendio) bas
-                // Incendio manayı kalkan tutmaktan çok daha az harcar, bu oyuncunun manasını eritir!
+                // Incendio alev fırtınasıyla kalkan manasını saniyede 14 birim erit
                 this.triggerSpell(ai, player, 1);
             } else {
-                // Oyuncu savunmasızsa:
-                if (Math.random() < 0.6) {
-                    this.triggerSpell(ai, player, 2); // Sinsi hızlı Sectumsempra fırlat
+                // Kalkanı kapalıysa:
+                if (Math.random() < 0.55) {
+                    this.triggerSpell(ai, player, 2); // Sinsi yavaş Sectumsempra mermisini fırlat
                 } else {
-                    this.triggerSpell(ai, player, 1); // Incendio ile yanma yükü biriktir
+                    this.triggerSpell(ai, player, 1); // Incendio ile alev püskürt ve yakma yükü biriktir
                 }
             }
         }
     }
 
     /**
-     * Büyü atma komutunu asıl motor tetikleyicisine iletir.
+     * Büyü tetikleme komutunu asıl motor köprüsüne iletir.
      */
     triggerSpell(ai, player, index) {
-        // Eğer oyuncu zaten bir kanalizasyon altındaysa ve tekrar kanalize edilmek isteniyorsa kesintiyi önle
         if (ai.channelingSpell) return;
 
-        // Büyü tetikleme komutunu çalıştır
-        // index 1: Confringo/Incendio, index 2: Crucio/Sectumsempra, index 3: Ulti
         const mainJS = this.game; 
-        
-        // global scope veya main.js üzerinden castSpell fonksiyonunu tetikle
-        // main.js içindeki castSpell fonksiyonu parametre olarak (caster, target, index) alır
-        // Bu işlem asenkron veya doğrudan tetiklenebilir
         const castSpell = mainJS.canvas.ownerDocument.defaultView.castSpell || window.castSpell;
         
         if (castSpell) {
             castSpell(ai, player, index);
         } else {
-            // Fallback: Eğer global scope'da bulunamazsa main.js içindeki yerel fonksiyon çağrısını taklit et
-            // main.js'teki olay dinleyicisi ile doğrudan entegrasyon
-            const p1 = this.game.p1;
-            const p2 = this.game.p2;
-            const target = (ai === p1) ? p2 : p1;
-            
-            // main.js'te bulunan castSpell yerel fonksiyonu aslında import edilmeksizin globalleşmiş durumdadır
-            // Başlatma anında startBtn olayında tanımlanan yapı
             const globalCast = window.castSpell;
             if (typeof globalCast === 'function') {
-                globalCast(ai, target, index);
+                globalCast(ai, player, index);
             }
         }
     }
