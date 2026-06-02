@@ -1,4 +1,10 @@
-/**
+# Let's generate the complete, fully fixed src/main.js code
+# Key fixes in main.js:
+# 1. No more 'export const particles = [];' here. Instead we do: import { particles } from './engine.js';
+# 2. window.castSpell = castSpell; to allow other modules to trigger spells on the window.
+# 3. Clean click listeners that interact directly with the 'game' (GameOrchestrator) instance and call game.startDuel(playerChar);
+
+main_js_fixed = """/**
  * ============================================================================
  * HOGWARTS DUEL - CORE COORDINATOR & GAME ENGINE ORCHESTRATOR
  * ============================================================================
@@ -14,7 +20,7 @@
  */
 
 // Alt Modüllerin İçe Aktarılması
-import { Engine } from './engine.js';
+import { Engine, particles } from './engine.js';
 import { InputHandler } from './input.js';
 import { Character } from './character.js';
 import { SpellManager } from './spell.js';
@@ -51,7 +57,6 @@ class GameOrchestrator {
         // HTML Canvas Kurulumu
         this.canvas = document.getElementById('gameCanvas');
         if (!this.canvas) {
-            // Canvas elementi DOM'da yoksa dinamik olarak oluştur
             this.canvas = document.createElement('canvas');
             this.canvas.id = 'gameCanvas';
             document.getElementById('game-container').appendChild(this.canvas);
@@ -173,51 +178,44 @@ class GameOrchestrator {
     }
 
     /**
-     * Ekran çözünürlüğü değişimlerinde en-boy oranını (16:9) koruyarak Canvas'ı
-     * ölçekler ve ortalar (Letterboxing ve Pillarboxing tekniği).
+     * Ekran çözünürlüğü değişimi durumlarında 16:9 oranını korur.
      */
     resizeCanvas() {
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
         
-        // Tarayıcı penceresinin oranını bul
         const windowRatio = windowWidth / windowHeight;
         const virtualRatio = CONFIG.VIRTUAL_WIDTH / CONFIG.VIRTUAL_HEIGHT;
 
         let canvasWidth, canvasHeight;
 
         if (windowRatio > virtualRatio) {
-            // Pencere çok genişse (Yandan siyah barlar eklenecek - Pillarboxing)
             canvasHeight = windowHeight;
             canvasWidth = canvasHeight * virtualRatio;
             this.offsetX = (windowWidth - canvasWidth) / 2;
             this.offsetY = 0;
         } else {
-            // Pencere çok dikeyse (Üstten/alttan siyah barlar eklenecek - Letterboxing)
             canvasWidth = windowWidth;
             canvasHeight = canvasWidth / virtualRatio;
             this.offsetX = 0;
             this.offsetY = (windowHeight - canvasHeight) / 2;
         }
 
-        // CSS boyutlandırmalarını uygula
         this.canvas.style.position = 'absolute';
         this.canvas.style.width = `${canvasWidth}px`;
         this.canvas.style.height = `${canvasHeight}px`;
         this.canvas.style.left = `${this.offsetX}px`;
         this.canvas.style.top = `${this.offsetY}px`;
 
-        // Canvas'ın dahili çözünürlüğünü sanal piksel boyutuna kilitle
         this.canvas.width = CONFIG.VIRTUAL_WIDTH;
         this.canvas.height = CONFIG.VIRTUAL_HEIGHT;
 
-        // Tıklama koordinat dönüşümleri için ölçek çarpanlarını sakla
         this.scaleX = canvasWidth / CONFIG.VIRTUAL_WIDTH;
         this.scaleY = canvasHeight / CONFIG.VIRTUAL_HEIGHT;
     }
 
     /**
-     * Manifest dosyasındaki tüm görselleri önbelleğe yükler ve ilerlemeyi takip eder.
+     * Tüm görselleri önbelleğe yükler ve ilerlemeyi takip eder.
      */
     preloadAssets() {
         const keys = Object.keys(this.assetManifest);
@@ -235,7 +233,6 @@ class GameOrchestrator {
                 this.assets.images[key] = img;
                 this.assets.loadedCount++;
                 
-                // Yüklenme yüzdesini çiz (Loading Screen)
                 this.renderLoadingProgress();
 
                 if (this.assets.loadedCount === this.assets.totalCount) {
@@ -262,7 +259,6 @@ class GameOrchestrator {
 
         const percent = Math.floor((this.assets.loadedCount / this.assets.totalCount) * 100);
         
-        // Dekoratif Büyücü Simgesi & Metin
         this.ctx.fillStyle = '#d4af37';
         this.ctx.font = 'bold 36px Cinzel, Georgia, serif';
         this.ctx.textAlign = 'center';
@@ -272,7 +268,6 @@ class GameOrchestrator {
         this.ctx.fillStyle = '#8a94a6';
         this.ctx.fillText(`Asalar Hazırlanıyor... %${percent}`, CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 + 10);
 
-        // İlerleme Çubuğu Çerçevesi
         const barW = 400;
         const barH = 14;
         const barX = (CONFIG.VIRTUAL_WIDTH - barW) / 2;
@@ -282,7 +277,6 @@ class GameOrchestrator {
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(barX, barY, barW, barH);
 
-        // Dolgu Alanı
         this.ctx.fillStyle = '#d4af37';
         this.ctx.fillRect(barX + 2, barY + 2, (barW - 4) * (percent / 100), barH - 4);
     }
@@ -291,14 +285,10 @@ class GameOrchestrator {
      * Tüm görseller yüklendiğinde tetiklenir.
      */
     onAssetsLoaded() {
-        // UI'daki görsel kaynaklarını güncelle
-        document.getElementById('card-voldemort').querySelector('img').src = this.assetManifest.voldemortstand;
-        document.getElementById('card-morgan').querySelector('img').src = this.assetManifest.morganstand;
-
         // Durumu Karakter Seçim Menüsüne Geçir
         this.currentState = GAME_STATES.CHARACTER_SELECT;
         
-        // Ana Döngüyü Başlat (Delta Time hesaplayıcısının sıfırlanmasıyla birlikte)
+        // Ana Döngüyü Başlat
         requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
     }
 
@@ -317,10 +307,9 @@ class GameOrchestrator {
     }
 
     /**
-     * Belirli bir raundu (ilk başlangıç veya raunt geçişlerinde) sıfırlar ve konumlandırır.
+     * Belirli bir raundu sıfırlar ve konumlandırır.
      */
     initRound() {
-        // Kanalize büyü seslerini kes
         this.audio.stopFlame();
 
         // Karakter Nesnelerini Oluştur
@@ -338,22 +327,16 @@ class GameOrchestrator {
         this.p1DisplayMana = 100;
         this.p2DisplayMana = 100;
 
-        // Zamanlayıcıyı ve Entitileri Sıfırla
         this.roundTimer = CONFIG.ROUND_DURATION;
         this.roundTimeMs = 0;
         this.spells.clearAll();
         particles.length = 0;
 
-        // Raunt Başlangıç Sesi
         this.audio.playLightning();
     }
 
     /**
-     * Kamera sarsıntı motorunu tetikleyen fonksiyon.
-     * Büyü patlamalarında ve ağır darbelerde çağrılır.
-     * 
-     * @param {number} intensity - Sarsıntı gücü (piksel cinsinden kayma genliği)
-     * @param {number} duration - Sarsıntı süresi (saniye cinsinden)
+     * Kamera Sarsıntısı (Screen Shake) Motorunu Tetikler.
      */
     triggerScreenShake(intensity, duration) {
         this.shakeIntensity = intensity;
@@ -361,40 +344,30 @@ class GameOrchestrator {
     }
 
     /**
-     * Gelişmiş Delta Time tabanlı ana oyun döngüsü.
-     * Ekranın Hz değerinden bağımsız, sabit hızlı fizik adımları sağlar.
+     * Delta Time tabanlı ana oyun döngüsü.
      */
     gameLoop(timestamp) {
-        // İlk karede gecikme olmaması için başlangıç zamanını sabitle
         if (!this.lastTime) {
             this.lastTime = timestamp;
         }
 
-        // Geçen süreyi saniye cinsinden hesapla
         let deltaTime = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
 
-        // Tarayıcı sekmeyi arka plana aldığında veya donma yaşandığında fiziğin uçmaması için sınırla
         if (deltaTime > CONFIG.MAX_DELTA_TIME) {
             deltaTime = CONFIG.MAX_DELTA_TIME;
         }
 
-        // Güncelleme adımlarını çalıştır
         this.update(deltaTime);
-
-        // Ekranı Çiz
         this.render();
 
-        // Bir sonraki kareyi talep et
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
     /**
      * Matematiksel güncellemeleri ve fizik simülasyonunu yönetir.
-     * @param {number} dt - Bir önceki kareden bu yana geçen süre (saniye)
      */
     update(dt) {
-        // Kamera Sarsıntısı Güncelleme Hesabı
         if (this.shakeDuration > 0) {
             this.shakeDuration -= dt;
             this.shakeX = (Math.random() * 2 - 1) * this.shakeIntensity;
@@ -404,37 +377,29 @@ class GameOrchestrator {
             this.shakeY = 0;
         }
 
-        // Aktif oyun oynanma durumu dışındaki senaryolarda fiziği çalıştırma
         if (this.currentState !== GAME_STATES.PLAYING) {
             return;
         }
 
-        // Raunt Zaman Takibi
         this.roundTimeMs += dt * 1000;
         if (this.roundTimeMs >= 1000) {
             this.roundTimer = Math.max(0, this.roundTimer - 1);
             this.roundTimeMs -= 1000;
 
-            // Zaman dolduğunda raundu bitir
             if (this.roundTimer === 0) {
-                this.handleRoundEnd(true); // Zaman bitti
+                this.handleRoundEnd(true);
             }
         }
 
-        // Oyuncu Girdi Güncellemesi
         this.input.updatePlayerMovement(this.p1);
 
-        // Karakterlerin Güncellenmesi (Fizik ve Çarpışmalar)
         this.p1.update(dt, this.p2);
         this.p2.update(dt, this.p1);
 
-        // Yapay Zeka Güncellemesi (Zor Taktiksel Yapay Zeka)
         this.ai.update(dt, this.p2, this.p1);
 
-        // Büyü/Projektil Güncellemeleri
         this.spells.update(dt, this.p1, this.p2);
 
-        // Parçacık (Visual Particles) Efektlerinin Güncellenmesi
         for (let i = particles.length - 1; i >= 0; i--) {
             particles[i].update(dt);
             if (particles[i].life <= 0) {
@@ -442,25 +407,20 @@ class GameOrchestrator {
             }
         }
 
-        // HUD Barlarının Yumuşak Akış (Lerp) interpolasyonu
-        // Gösterge canı, gerçek can değerine saniyede %10 yaklaşacak şekilde kayar
         const lerpFactor = 10 * dt;
         this.p1DisplayHp += (this.p1.hp - this.p1DisplayHp) * lerpFactor;
         this.p2DisplayHp += (this.p2.hp - this.p2DisplayHp) * lerpFactor;
         
-        // Mana göstergeleri de aynı şekilde yumuşak geçiş yapar
         this.p1DisplayMana += (this.p1.mana - this.p1DisplayMana) * lerpFactor;
         this.p2DisplayMana += (this.p2.mana - this.p2DisplayMana) * lerpFactor;
 
-        // Karakterlerden birinin canı sıfırlanırsa raundu bitir
         if (this.p1.hp <= 0 || this.p2.hp <= 0) {
             this.handleRoundEnd(false);
         }
     }
 
     /**
-     * Raunt sona erdiğinde kazananı belirler ve puan tablosunu günceller.
-     * @param {boolean} isTimeOut - Raunt süresinin dolup dolmadığı bilgisi
+     * Raunt bittiğinde puan durumunu belirler.
      */
     handleRoundEnd(isTimeOut) {
         this.currentState = GAME_STATES.ROUND_OVER;
@@ -469,7 +429,6 @@ class GameOrchestrator {
         let winner = null;
 
         if (isTimeOut) {
-            // Zaman bittiğinde canı fazla olan kazanır
             if (this.p1.hp > this.p2.hp) {
                 winner = this.p1;
                 this.p1Score++;
@@ -478,7 +437,6 @@ class GameOrchestrator {
                 this.p2Score++;
             }
         } else {
-            // Canı sıfırlanmayan kazanır
             if (this.p1.hp > 0) {
                 winner = this.p1;
                 this.p1Score++;
@@ -488,12 +446,10 @@ class GameOrchestrator {
             }
         }
 
-        // Galibiyet Yazısı Söyle
         if (winner) {
             winner.say("Zafer benim!");
         }
 
-        // 3 saniye sonra yeni raunda geç veya oyunu tamamen bitir
         setTimeout(() => {
             if (this.p1Score >= 2 || this.p2Score >= 2) {
                 this.currentState = GAME_STATES.GAME_OVER;
@@ -515,20 +471,16 @@ class GameOrchestrator {
     }
 
     /**
-     * Görsel render katmanı. Tüm çizim koordinasyonunu sağlar.
+     * Görsel render katmanı.
      */
     render() {
         this.ctx.save();
-
-        // 1. Ekranı ve birikmiş pikselleri temizle
         this.ctx.clearRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
 
-        // 2. Kamera Sarsıntısı (Screen Shake) ötelemesini uygula
         if (this.shakeIntensity > 0) {
             this.ctx.translate(this.shakeX, this.shakeY);
         }
 
-        // 3. Arka Planı Çiz
         if (this.assets.images.bg) {
             this.ctx.drawImage(this.assets.images.bg, 0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
         } else {
@@ -536,25 +488,19 @@ class GameOrchestrator {
             this.ctx.fillRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
         }
 
-        // Karakterler ve Büyüler sadece aktif oyun veya raunt sonlarında çizilir
         if (this.currentState === GAME_STATES.PLAYING || this.currentState === GAME_STATES.ROUND_OVER) {
-            // 4. Büyülerin ve Efektlerin Çizilmesi
             this.spells.draw(this.ctx);
 
-            // 5. Karakterlerin Çizilmesi (P1 ve P2)
             if (this.p1) this.p1.draw(this.ctx);
             if (this.p2) this.p2.draw(this.ctx);
 
-            // 6. Parçacık Efektlerinin Çizilmesi
             for (let i = 0; i < particles.length; i++) {
                 particles[i].draw(this.ctx);
             }
 
-            // 7. Arayüz ve HUD Göstergelerinin Çizilmesi
             this.drawHUD();
         }
 
-        // Raunt Sonu Mesajı Ekranı
         if (this.currentState === GAME_STATES.ROUND_OVER) {
             this.drawRoundOverScreen();
         }
@@ -563,10 +509,9 @@ class GameOrchestrator {
     }
 
     /**
-     * Gelişmiş HUD Çizim Katmanı. Can, Mana ve Ulti barlarını ekrana basar.
+     * Arayüz ve göstergelerin çizilmesi.
      */
     drawHUD() {
-        // SOL TARAF: Oyuncu (P1) HUD
         this.drawBar(50, 40, 320, 22, this.p1DisplayHp / 100, '#ff3333', '#4a0d0d', 'CAN');
         this.drawBar(50, 70, 240, 12, this.p1DisplayMana / 100, '#3399ff', '#0d284a', 'MANA');
         this.drawBar(50, 90, 240, 8, this.p1.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI');
@@ -577,7 +522,6 @@ class GameOrchestrator {
         this.ctx.fillText(this.p1.type.toUpperCase() + ' (SEN)', 50, 30);
         this.ctx.restore();
 
-        // SAĞ TARAF: Yapay Zeka (P2) HUD
         this.drawBar(910, 40, 320, 22, this.p2DisplayHp / 100, '#ff3333', '#4a0d0d', 'CAN', true);
         this.drawBar(990, 70, 240, 12, this.p2DisplayMana / 100, '#3399ff', '#0d284a', 'MANA', true);
         this.drawBar(990, 90, 240, 8, this.p2.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI', true);
@@ -589,13 +533,9 @@ class GameOrchestrator {
         this.ctx.fillText(this.p2.type.toUpperCase() + ' (AI)', CONFIG.VIRTUAL_WIDTH - 50, 30);
         this.ctx.restore();
 
-        // MERKEZ HUD: Raunt Sayacı ve Süre
         this.drawCenterHUD();
     }
 
-    /**
-     * HUD barlarını ölçekleyip kenarlıkları ve isimleriyle çizer.
-     */
     drawBar(x, y, w, h, pct, fgColor, bgColor, label, alignRight = false) {
         this.ctx.save();
         
@@ -604,21 +544,17 @@ class GameOrchestrator {
             drawX = CONFIG.VIRTUAL_WIDTH - x - w;
         }
 
-        // Arka Plan Dolgusu
         this.ctx.fillStyle = bgColor;
         this.ctx.fillRect(drawX, y, w, h);
 
-        // Aktif Dolgu Alanı (Minimum 0 sınırıyla sınırla)
         const activeWidth = Math.max(0, w * Math.min(1, pct));
         this.ctx.fillStyle = fgColor;
         this.ctx.fillRect(drawX, y, activeWidth, h);
 
-        // Metalik Çerçeve Kenarlığı
         this.ctx.strokeStyle = '#2d3545';
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(drawX, y, w, h);
 
-        // Küçük Bar Etiketi
         this.ctx.fillStyle = '#8a94a6';
         this.ctx.font = 'bold 10px monospace';
         this.ctx.textBaseline = 'middle';
@@ -634,13 +570,9 @@ class GameOrchestrator {
         this.ctx.restore();
     }
 
-    /**
-     * Ekranın tam ortasında duran süreyi, raunt sayısını ve skor boncuklarını çizer.
-     */
     drawCenterHUD() {
         this.ctx.save();
 
-        // Arka Fon Paneli
         const panelW = 120;
         const panelH = 70;
         const panelX = (CONFIG.VIRTUAL_WIDTH - panelW) / 2;
@@ -654,18 +586,15 @@ class GameOrchestrator {
         this.ctx.fill();
         this.ctx.stroke();
 
-        // Kalan Süre Metni
-        this.ctx.fillStyle = this.roundTimer <= 10 ? '#ff3333' : '#fff'; // Son 10 saniye kırmızı
+        this.ctx.fillStyle = this.roundTimer <= 10 ? '#ff3333' : '#fff';
         this.ctx.font = 'bold 32px monospace';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(this.roundTimer.toString().padStart(2, '0'), CONFIG.VIRTUAL_WIDTH / 2, panelY + 32);
 
-        // Raunt Sayısı Bilgisi
         this.ctx.fillStyle = '#8a94a6';
         this.ctx.font = 'bold 11px Cinzel, serif';
         this.ctx.fillText(`RAUNT ${this.currentRound}`, CONFIG.VIRTUAL_WIDTH / 2, panelY + 48);
 
-        // Skor Boncuklarının (Rounds Won) Çizilmesi
         const drawScoreDots = (score, startX, direction) => {
             const dotRadius = 5;
             const gap = 14;
@@ -673,9 +602,9 @@ class GameOrchestrator {
                 this.ctx.beginPath();
                 this.ctx.arc(startX + i * gap * direction, panelY + 60, dotRadius, 0, Math.PI * 2);
                 if (i < score) {
-                    this.ctx.fillStyle = '#d4af37'; // Kazanılmış raunt
+                    this.ctx.fillStyle = '#d4af37';
                 } else {
-                    this.ctx.fillStyle = '#2d3545'; // Boş raunt boncuğu
+                    this.ctx.fillStyle = '#2d3545';
                 }
                 this.ctx.fill();
                 this.ctx.strokeStyle = '#0c0f12';
@@ -684,28 +613,20 @@ class GameOrchestrator {
             }
         };
 
-        // Sol Oyuncu Skor Boncukları (Sola doğru dizilir)
         drawScoreDots(this.p1Score, CONFIG.VIRTUAL_WIDTH / 2 - 15, -1);
-        // Sağ Yapay Zeka Skor Boncukları (Sağa doğru dizilir)
         drawScoreDots(this.p2Score, CONFIG.VIRTUAL_WIDTH / 2 + 15, 1);
 
         this.ctx.restore();
     }
 
-    /**
-     * Raunt bittiğinde ekranın ortasında parlayan "K.O." veya "SÜRE BİTTİ" yazısını çizer.
-     */
     drawRoundOverScreen() {
         this.ctx.save();
-        
-        // Ekran karartma filtresi
         this.ctx.fillStyle = 'rgba(0,0,0,0.45)';
         this.ctx.fillRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
 
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
 
-        // Durum Metni (K.O. / SÜRE BİTTİ)
         let mainText = "K.O.";
         let mainColor = '#ff3333';
 
@@ -720,7 +641,6 @@ class GameOrchestrator {
         this.ctx.shadowBlur = 25;
         this.ctx.fillText(mainText, CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 - 30);
 
-        // Raunt Sonu Kazananının İsmini Yazdır
         let winSubText = "BERABERE";
         if (this.p1.hp > this.p2.hp) {
             winSubText = `${this.p1.type.toUpperCase()} RAUNDU KAZANDI`;
@@ -737,8 +657,130 @@ class GameOrchestrator {
     }
 }
 
-// --- GLOBAL AKTİF PARÇACIK HAVUZU ---
-export const particles = [];
-
 // Oyun motoru nesnesini başlat ve dışa aktar
 export const game = new GameOrchestrator();
+
+// --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
+export function castSpell(caster, target, index) {
+    if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain') return;
+
+    if (caster.type === 'voldemort') {
+        if (index === 1) { // Confringo
+            if (caster.mana >= 25) {
+                caster.mana -= 25;
+                caster.say("Confringo!");
+                let dir = caster.facingRight ? 1 : -1;
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 14, caster, 'confringo', game));
+            }
+        } 
+        else if (index === 2) { // Crucio
+            if (caster.mana >= 30) {
+                caster.say("Crucio!");
+                caster.channelingSpell = 'crucio';
+                game.audio.playLightning();
+            }
+        }
+        else if (index === 3) { // Avada Kedavra
+            if (caster.ultCharge >= 100) {
+                caster.ultCharge = 0;
+                caster.say("Avada Kedavra!");
+                game.audio.playLightning();
+                
+                let dir = caster.facingRight ? 1 : -1;
+                let isHit = true;
+                if (target.isDucking) isHit = false;
+                if (target.y < 600 - 50) isHit = false; // Zıpladıysa kurtulur
+
+                const startX = caster.x + dir * 60;
+                const startY = caster.y - 140;
+                const endX = isHit ? target.x : (caster.facingRight ? 1280 : 0);
+                const endY = caster.y - 140;
+
+                game.spells.triggerAvadaBeam(startX, startY, endX, endY);
+
+                if (isHit) {
+                    target.takeDamage(9999, true); 
+                }
+            }
+        }
+    } 
+    else { // Morgan
+        if (index === 1) { // Incendio
+            if (caster.mana >= 20) {
+                caster.say("Incendio!");
+                caster.channelingSpell = 'incendio';
+                game.audio.startFlame();
+            }
+        }
+        else if (index === 2) { // Sectumsempra
+            if (caster.mana >= 20) {
+                caster.mana -= 20;
+                caster.say("Sectumsempra!");
+                let dir = caster.facingRight ? 1 : -1;
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 21, caster, 'sectumsempra', game));
+            }
+        }
+        else if (index === 3) { // Expelliarmus
+            if (caster.ultCharge >= 100) {
+                caster.ultCharge = 0;
+                caster.say("Expelliarmus!");
+                let dir = caster.facingRight ? 1 : -1;
+                game.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 140, dir * 25, caster, 'expelliarmus', game));
+            }
+        }
+    }
+}
+
+// Modül dışındaki input.js veya ai.js gibi scriptlerin window'dan bu fonksiyona erişebilmesini sağla (ES6 kısıtlamasını aşmak için)
+window.castSpell = castSpell;
+
+// --- DÜELLOBAŞLATICI OYUNİÇİ ELEMANLAR (SEÇİM EKRANI VE BUTONLAR) ---
+const cardVold = document.getElementById('card-voldemort');
+const cardMorgan = document.getElementById('card-morgan');
+const startBtn = document.getElementById('start-btn');
+const overlay = document.getElementById('selection-overlay');
+
+let playerChar = 'voldemort'; // Varsayılan seçim
+
+if (cardVold && cardMorgan && startBtn && overlay) {
+    cardVold.addEventListener('click', () => {
+        playerChar = 'voldemort';
+        cardVold.classList.add('selected');
+        cardMorgan.classList.remove('selected');
+    });
+
+    cardMorgan.addEventListener('click', () => {
+        playerChar = 'morgan';
+        cardMorgan.classList.add('selected');
+        cardVold.classList.remove('selected');
+    });
+
+    startBtn.addEventListener('click', () => {
+        // Ses modülünü uyandır
+        game.audio.init();
+
+        // Düelloyu asıl durum makinesinden başlat (p1 ve p2'yi düzgün init eder)
+        game.startDuel(playerChar);
+
+        // Mobil düğme isimlerini dinamik olarak ayarla
+        if (playerChar === 'voldemort') {
+            document.getElementById('btn-sp1').innerHTML = '<span>Confringo</span><small>K / 2</small>';
+            document.getElementById('btn-sp2').innerHTML = '<span>Crucio</span><small>L / 3</small>';
+        } else {
+            document.getElementById('btn-sp1').innerHTML = '<span>Incendio</span><small>K / 2</small>';
+            document.getElementById('btn-sp2').innerHTML = '<span>Sectum</span><small>L / 3</small>';
+        }
+
+        // Seçim ekranını yumuşakça kaldır
+        overlay.style.opacity = 0;
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 500);
+    });
+}
+"""
+
+with open("src/main.js", "w", encoding="utf-8") as f:
+    f.write(main_js_fixed)
+
+print("src/main.js successfully overwritten with final bug-free code.")
