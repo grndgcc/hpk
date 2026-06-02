@@ -6,6 +6,36 @@
 
 import { Engine, Vector2, ParticleFactory, particles } from './engine.js';
 
+// --- EKLENTİ 2 YARDIMCI SINIFI: UÇAN YAZILAR ---
+class FloatingText {
+    constructor(text, x, y, color = '#ff3333') {
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.vy = -1.8; // Yukarı süzülme hızı
+        this.color = color;
+        this.life = 1.0; // Ekranda kalma süresi (1 saniye)
+    }
+
+    update(dt) {
+        this.y += this.vy * 60 * dt;
+        this.life -= dt;
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life); // Zamanla şeffaflaşır
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 22px "Cinzel", Courier, monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
 export class Projectile {
     constructor(x, y, vx, owner, type, game) {
         this.x = x;
