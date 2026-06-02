@@ -358,6 +358,9 @@ class BloodOverlay {
  * Avada Kedavra Ölüm Işını Efekti
  * Tamamen prösedürel yeşil dallanan yıldırımlarla çizilecek şekilde güncellendi.
  */
+/**
+ * Avada Kedavra Yeşil Dallanan Yıldırım Efekti Sınıfı
+ */
 class AvadaKedavraBeam {
     constructor(startX, startY, endX, endY, game) {
         this.startX = startX;
@@ -374,7 +377,7 @@ class AvadaKedavraBeam {
     }
 
     /**
-     * Dallanan yeşil yıldırımları çizen rekürsif fonksiyon.
+     * Rekürsif (kendi kendini çağıran) yeşil yıldırım dallandırma fonksiyonu
      */
     drawLightningBranch(ctx, sx, sy, ex, ey, depth, maxDepth) {
         if (depth > maxDepth) return;
@@ -387,8 +390,8 @@ class AvadaKedavraBeam {
         let lastX = sx;
         let lastY = sy;
         
-        ctx.strokeStyle = '#00ff33'; // Neon yeşili elektrik
-        ctx.lineWidth = (4 - depth) * (this.life / this.maxLife); // Derinliğe göre incelir
+        ctx.strokeStyle = '#00ff33'; // Neon yeşili elektrik rengi
+        ctx.lineWidth = Math.max(0.5, (4 - depth) * (this.life / this.maxLife)); // Derinliğe göre incelir
         ctx.shadowColor = '#00ff33';
         ctx.shadowBlur = 15;
 
@@ -398,7 +401,7 @@ class AvadaKedavraBeam {
             let py = sy + (ey - sy) * t;
             
             if (i < segments) {
-                // Hattın doğrultusuna dik eksende kırıklı pürüzler ekle
+                // Şimşeğin doğrultusuna dik açıda kırıklı pürüzler (jitter) ekle
                 const angle = Vector2.angleBetween(sx, sy, ex, ey) + Math.PI / 2;
                 const jitter = (Math.random() * 2 - 1) * (18 / (depth + 1));
                 px += Math.cos(angle) * jitter;
@@ -407,7 +410,7 @@ class AvadaKedavraBeam {
             
             ctx.lineTo(px, py);
             
-            // Rastgele yan yıldırımlar (branches) fırlat
+            // Rastgele yan yıldırımlar (kılcal şimşekler) fırlatır
             if (Math.random() < 0.16 && depth < maxDepth && i < segments) {
                 const branchAngle = Vector2.angleBetween(lastX, lastY, px, py) + (Math.random() * 0.9 - 0.45);
                 const branchLength = dist * (1 - t) * 0.35;
@@ -428,13 +431,12 @@ class AvadaKedavraBeam {
         ctx.save();
         ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
         
-        // 3 kollu dallanan ana yıldırımı çiz
+        // 3 ana koldan dallanan neon yeşili yıldırımı çizdirir
         this.drawLightningBranch(ctx, this.startX, this.startY, this.endX, this.endY, 0, 3);
         
         ctx.restore();
     }
 }
-
 /**
  * Tüm Büyüleri, Alan Efektlerini ve Yazıları Yöneten Sınıf (Orchestrator Module)
  */
