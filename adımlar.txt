@@ -1,0 +1,152 @@
+Bu projenin Tekken tarzı derinlemesine bir dövüş mekaniğine, kararlı bir yapay
+zekaya ve modüler bir mimariye ulaşabilmesi için uzun vadeli tasarım adımlarını
+detaylı bir yol haritası halinde aşağıda bulabilirsiniz.
+
+Projenin tek bir dosya olmaktan çıkıp profesyonel bir oyun projesine
+dönüştürülmesi amacıyla süreç 7 ana faza bölünmüştür:
+
+FAZ 1: Dosya Yapısı ve Mimari Modülerlik (ES6 Modules)
+
+Tek bir HTML dosyası üzerinde çalışmak projenin büyümesini zorlaştırır. Bu
+nedenle projenin ilk adımı, kod tabanını ES6 modülleri kullanarak parçalara
+ayırmaktır.
+
+  - index.html: Sadece ana Canvas'ı, stil dosyalarını ve giriş/seçim ekranı DOM
+    elemanlarını barındırır.
+  - src/main.js: Ana oyun döngüsünü (tick), oyun durumlarını (Menü, Karakter
+    Seçimi, Savaş, Oyun Bitti) ve genel başlatma süreçlerini yönetir.
+  - src/engine.js: Ekran ölçeklendirme, Canvas çizim yardımcıları, kamera
+    sallantı efektleri (ekran titremesi) gibi yardımcı çekirdek fonksiyonları
+    içerir.
+  - src/character.js: Karakter sınıfını, can/mana yönetimini, durum
+    güncellemelerini ve fiziksel sınırları barındırır.
+  - src/spell.js: Projektil mermiler, alan hasarları ve sürekli kanalize edilen
+    ışın/alev mekaniklerini (fiziğini) tanımlar.
+  - src/ai.js: Yapay zekanın durum tahmin mekanizmasını ve karar alma yapısını
+    içerir.
+  - src/input.js: Klavye, gamepad API'si ve mobil dokunmatik kontrolleri tek bir
+    girdi soyutlama katmanında (Input Abstractor) birleştirir.
+  - src/audio.js: Web Audio API tabanlı ses sentezleme motorunu ve ses
+    tetikleyicilerini yönetir.
+
+FAZ 2: Gelişmiş Dövüş Fiziği ve Hitbox/Hurtbox Sistemi
+
+Klasik bir dövüş oyununda karakterlerin sadece tek bir dikdörtgenden ibaret
+olması yetersizdir. Doğru bir fizik için alanların ayrılması gerekir:
+
+  - Hurtbox (Hasar Alma Alanı): Karakterin gövdesini temsil eden alan.
+      - Ayakta dururken: 130 \times 280 boyutunda dikey bir kutu.
+      - Eğilirken (Duck): Yüksekliği 150 piksele düşen, alt tabana yapışık dikey
+        bir kutu. (Bu sayede göğüs hizasından giden Avada Kedavra veya hızlı
+        şimşekler eğilen karakterin üzerinden geçer).
+      - Zıplarken (Jump): Havaya yükselen ve alt tabanı yerden kesilen kutu. (Bu
+        sayede yer sarsıntısı veya yerden giden Confringo patlamalarından
+        kaçılabilir).
+  - Hitbox (Hasar Verme/Etki Alanı): Büyülerin ve patlamaların aktif etki
+    alanları.
+      - Mermilerin hitbox'ları kendi görsel sınırları kadardır.
+      - Confringo patlamasının hitbox'ı, çarpışma noktasından dışarıya doğru
+        büyüyen dairesel bir etki alanıdır.
+  - İvmelenme ve Sürtünme: Karakterlerin yürürken anında durmaması, hafif bir
+    sürtünme ivmesiyle yavaşlaması (inertia) hareket hissini daha doğal hale
+    getirir.
+
+FAZ 3: Karakter Durum Makinesi (Finite State Machine - FSM)
+
+Karakterlerin aynı anda hem yürümesini, hem hasar almasını hem de büyü atmasını
+engellemek; animasyon karelerinin birbiriyle çakışmaması için katı bir FSM
+yapısı tasarlanmalıdır.
+
+  - Durumlar (States):
+      - IDLE: Karakter hareketsizdir, manası normal hızda dolar.
+      - WALK: Karakter hareket ediyordur, ayak sesleri tetiklenir.
+      - CAST: Karakter büyü yapıyordur. Bu durumdayken hareket hızı sıfırlanır.
+      - PAIN: Karakter darbe almıştır. Kısa süreliğine kontrolü kaybeder
+        (Stun/Flinch).
+      - STUNNED: Expelliarmus gibi büyülerle dondurulmuştur. Hiçbir girdi kabul
+        edilmez.
+      - DEAD: Karakter elenmiştir, fiziksel etkileşimleri kapatılır.
+  - Kare Tabanlı Animasyon Yönetimi: Her durumun kendine ait bir kare hızı
+    (frame rate) ve döngü tipi olmalıdır. Örneğin:
+      - WALK durumu 7 kareyi sürekli döner.
+      - CAST durumu büyü yapılmaya başlandığında 1-3 arasındaki kareleri bir kez
+        oynatır, kanalize büyü ise son karede basılı tutulduğu sürece kalır.
+
+FAZ 4: İleri Düzey Büyü Dengesi ve Çerçeve Verisi (Frame Data)
+
+Oyunun rekabetçi hissettirmesi için her büyünün milisaniye/çerçeve bazlı
+aşamaları olmalıdır:
+
+1.  Startup (Hazırlık Kareleri): Büyünün tuşa basıldıktan sonra asadan çıkana
+    kadar geçen süre. Bu esnada karakter darbe yerse büyü yarıda kesilir
+    (interrupt).
+2.  Active (Aktif Kareler): Büyünün hasar verme potansiyelinin olduğu uçuş veya
+    temas süresi.
+3.  Recovery (Toparlanma Kareleri): Büyü atıldıktan sonra karakterin asasını
+    indirdiği ve savunmasız kaldığı süre.
+4.  Büyülerin Matematiksel Dengesi:
+      - Protego: Başlangıçta 5 mana harcar. Açık tutulduğu her saniye için
+        saniyede 36 mana tüketir. Doğru zamanlama ile sadece mermi çarpmadan
+        hemen önce açılıp kapatılırsa çok az mana harcar.
+      - Confringo: 25 mana harcar. Kalkanı aşar. Startup süresi uzundur, bu
+        yüzden toparlanma sürecindeki rakiplere atılması stratejik önem taşır.
+      - Crucio: Saniyede 42 mana tüketir. Rakibi PAIN durumunda kilitleyip hamle
+        yapmasını engeller ancak manası hızlı bittiği için tek başına öldürmez.
+      - Sectumsempra: 20 mana harcar. Hızlıdır ve ilk aşamada görünmezdir.
+        Kalkanla durdurulabilir.
+      - Expelliarmus (Morgan Ulti): Rakibi 3.5 saniye dondurarak Morgan'a
+        risksiz hasar verme penceresi açar.
+      - Avada Kedavra (Voldemort Ulti): Engellenemez tek atış. Dolması en zor
+        ultidir.
+
+FAZ 5: Taktiksel Yapay Zeka (AI Decision Tree / Finite State Machine)
+
+Yapay zekanın "zor" hissettirmesi için rastgele büyü atmak yerine oyuncunun
+açıklarını araması ve reaksiyon sürelerini taklit etmesi gerekir:
+
+  - Reaksiyon Gecikmesi (Reaction Window): Yapay zekaya zorluk seviyesine
+    göre 120ms ile 250ms arasında bir gecikme eklenmelidir. Oyuncu Sectumsempra
+    attığında AI bunu anında algılamaz; bu gecikme süresi bittiğinde kalkan
+    (Protego) tetikler. Bu, gerçekçi bir oyuncu hissi yaratır.
+  - Zıplama/Eğilme Analizi: AI, gelen büyünün Confringo olduğunu anlarsa kalkan
+    açmanın anlamsız olduğunu bilir. Bunun yerine dikey mesafeyi hesaplayıp
+    zıplama ivmesi uygular. Avada Kedavra ışını algılandığında ise eğilme
+    durumuna geçer.
+  - Baiting (Tuzak Kurma) ve Toparlanma Cezalandırması: AI, oyuncunun manasının
+    bittiğini veya oyuncunun büyü attıktan sonraki toparlanma (Recovery)
+    karesinde olduğunu algılarsa en yüksek hasarlı büyüsünü fırlatır.
+
+FAZ 6: Prosedürel Ses Tasarımı ve Ses Havuzu Optimizasyonu
+
+Tarayıcıların ses dosyalarını yüklerken yaşadığı sorunları ve gecikmeleri
+(latency) çözmek için Web Audio API tabanlı ses motoru daha geniş frekans
+filtreleriyle donatılmalıdır:
+
+  - Frekans Modülasyonu (FM Synthesis): Crucio çığlıklarında kademeli olarak
+    yükselen ve titreşen (LFO kontrollü) testere dalgası osilatörleri
+    kullanılmalıdır.
+  - Alev Sesi Filtreleri: Incendio esnasında düşük frekanslı pembe gürültü (pink
+    noise) dalgaları bandpass filtrelerden geçirilerek rüzgar ve yanma hissi
+    verilir.
+  - Ses Havuzu (Audio Pool) Yönetimi: Aynı anda birden fazla yürüme veya patlama
+    sesinin tarayıcıyı kasmaması için maksimum aktif ses kanalı sınırı (örneğin
+    aynı anda en fazla 8 ses) konulmalıdır.
+
+FAZ 7: Ekran Boyutu Yönetimi, Girdi Soyutlama ve Dağıtım
+
+Oyunun her ekran çözünürlüğünde ve cihazda aynı fiziksel hızda çalışması için şu
+standartlar uygulanmalıdır:
+
+  - Delta Time Entegrasyonu: Fizik güncellemeleri ekranın yenilenme hızına
+    (60Hz, 120Hz, 144Hz) bağlı olmamalıdır. Güncellemeler geçen milisaniye farkı
+    (dt) ile çarpılmalıdır: position += velocity * dt
+  - Letterboxing (En-Boy Oranı Koruyucu): Canvas her zaman 16:9 oranını
+    koruyacak şekilde ekranı kaplamalı, boş kalan yerler siyah barlar
+    (letterbox) ile doldurulmalıdır.
+  - Girdi Soyutlama (Input Abstraction): Karakter kontrolleri doğrudan
+    "klavyedeki W tuşu" yerine "JUMP" eylemine bağlanmalıdır. Böylece aynı
+    "JUMP" eylemi mobilde sanal joystick yukarı çekildiğinde veya klavyede W'ya
+    basıldığında ortak bir kanaldan işlenir.
+  - GitHub Pages CI/CD: Proje klasörüne eklenecek basit bir GitHub Actions iş
+    akışı ile repository'ye her push yapıldığında oyunun otomatik olarak
+    derlenip GitHub Pages üzerinde güncellenmesi sağlanabilir.
