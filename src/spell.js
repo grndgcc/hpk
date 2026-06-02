@@ -6,15 +6,14 @@
 
 import { Engine, Vector2, ParticleFactory, particles } from './engine.js';
 
-// --- EKLENTİ 2 YARDIMCI SINIFI: UÇAN YAZILAR ---
 class FloatingText {
     constructor(text, x, y, color = '#ff3333') {
         this.text = text;
         this.x = x;
         this.y = y;
-        this.vy = -1.8; // Yukarı süzülme hızı
+        this.vy = -1.8;
         this.color = color;
-        this.life = 1.0; // Ekranda kalma süresi (1 saniye)
+        this.life = 1.0;
     }
 
     update(dt) {
@@ -25,7 +24,7 @@ class FloatingText {
     draw(ctx) {
         if (this.life <= 0) return;
         ctx.save();
-        ctx.globalAlpha = Math.max(0, this.life); // Zamanla şeffaflaşır
+        ctx.globalAlpha = Math.max(0, this.life);
         ctx.fillStyle = this.color;
         ctx.font = 'bold 22px "Cinzel", Courier, monospace';
         ctx.textAlign = 'center';
@@ -227,26 +226,34 @@ class AvadaKedavraBeam {
         ctx.restore();
     }
 }
+
 export class SpellManager {
     constructor(game) {
         this.game = game;
         this.projectiles = [];
         this.effects = [];
-        this.floatingTexts = []; // <-- EKLENDİ: Yazıları tutacak havuz
+        this.floatingTexts = [];
     }
 
     clearAll() {
         this.projectiles = [];
         this.effects = [];
-        this.floatingTexts = []; // <-- EKLENDİ
+        this.floatingTexts = [];
     }
 
-    // <-- EKLENDİ: Dışarıdan yazı eklemeyi sağlayan fonksiyon
+    addProjectile(proj) {
+        this.projectiles.push(proj);
+    }
+
+    addEffect(eff) {
+        this.effects.push(eff);
+    }
+
     addFloatingText(text, x, y, color) {
         this.floatingTexts.push(new FloatingText(text, x, y, color));
     }
-update(dt, p1, p2) {
-        // 1. Havada süzülen mermileri güncelle (KORUNACAK MEVCUT KOD)
+
+    update(dt, p1, p2) {
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const proj = this.projectiles[i];
             const target = (proj.owner === p1) ? p2 : p1;
@@ -257,7 +264,6 @@ update(dt, p1, p2) {
             }
         }
 
-        // 2. Alan ve patlama efektlerini güncelle (SORDUĞUNUZ KOD - KESİNLİKLE KORUNACAK)
         for (let i = this.effects.length - 1; i >= 0; i--) {
             const eff = this.effects[i];
             eff.update(dt);
@@ -267,7 +273,7 @@ update(dt, p1, p2) {
             }
         }
 
-        // --- EKLENTİ 1: BÜYÜ ÇARPIŞMASI (PRIORI INCANTATEM) ---
+        // --- BÜYÜ ÇARPIŞMASI (PRIORI INCANTATEM) ---
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             for (let j = i - 1; j >= 0; j--) {
                 const projA = this.projectiles[i];
@@ -292,7 +298,7 @@ update(dt, p1, p2) {
             }
         }
 
-        // --- EKLENTİ 2: UÇAN HASAR YAZILARINI GÜNCELLE ---
+        // --- UÇAN HASAR YAZILARINI GÜNCELLE ---
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
             const ft = this.floatingTexts[i];
             ft.update(dt);
@@ -301,7 +307,7 @@ update(dt, p1, p2) {
             }
         }
 
-        // 3. KANALİZE EDİLEN SÜREKLİ BÜYÜLERİN ETKİLERİ (KORUNACAK MEVCUT KOD)
+        // KANALİZE EDİLEN BÜYÜLERİN ETKİLERİ
         [p1, p2].forEach(caster => {
             if (!caster.channelingSpell) return;
             const target = (caster === p1) ? p2 : p1;
@@ -341,53 +347,11 @@ update(dt, p1, p2) {
         });
     }
 
-        // --- DÜZELTME: KANALİZE SÜREKLİ BÜYÜLERİN MANA/CAN AKTİF ETKİLERİ ---
-        [p1, p2].forEach(caster => {
-            if (!caster.channelingSpell) return;
-            const target = (caster === p1) ? p2 : p1;
-
-            // Büyü kanalizasyonu için saniyelik mana tüketimi
-            let drainRate = caster.type === 'voldemort' ? 35 : 30; 
-            caster.mana -= drainRate * dt;
-
-            // Büyüyü yapanın manası biterse, hasar yerse veya sersemlerse büyü kesilir
-            if (caster.mana <= 0 || caster.state === 'pain' || caster.state === 'stun' || caster.state === 'dead') {
-                caster.mana = Math.max(0, caster.mana);
-                caster.stopChannel();
-                return;
-            }
-
-            // Menzil içi hasar ve ulti doldurma kontrolü (Menzil: 780px)
-            const dist = Math.abs(caster.x - target.x);
-            if (dist < 780) {
-                if (caster.type === 'voldemort' && caster.channelingSpell === 'crucio') {
-                    if (target.shieldActive) {
-                        target.mana -= 18 * dt; // Kalkanın manasını hızla eritir
-                    } else {
-                        target.takeDamage(16 * dt, false); // Crucio can yakma hasarı
-                        caster.ultCharge += 15 * dt;      // Saniyede 15 ulti doldurur
-                        target.vx *= 0.5;                  // Karakteri yavaşlatır
-                    }
-                } 
-                else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
-                    if (target.shieldActive) {
-                        target.mana -= 14 * dt; 
-                    } else {
-                        target.takeDamage(12 * dt, false); // Incendio doğrudan alev hasarı
-                        caster.ultCharge += 12 * dt;
-                        if (Math.random() < 4 * dt) { 
-                            target.addBurnStack();          // Yakma yükü biriktirir
-                        }
-                    }
-                }
-            }
-        });
-    }
-
     draw(ctx) {
         this.effects.forEach(eff => eff.draw(ctx));
         this.projectiles.forEach(proj => proj.draw(ctx));
         this.drawContinuousChannels(ctx);
+        this.floatingTexts.forEach(ft => ft.draw(ctx));
     }
 
     drawContinuousChannels(ctx) {
@@ -399,7 +363,6 @@ update(dt, p1, p2) {
             const opponent = (caster === p1) ? p2 : p1;
 
             const startX = caster.x + (caster.facingRight ? 50 : -50);
-            // DÜZELTME: Başlangıç ve bitiş koordinatları omuz/asa yüksekliğine (y - 210) çekildi
             const startY = caster.y - 210; 
 
             const targetX = opponent.x;
