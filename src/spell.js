@@ -237,7 +237,36 @@ export class SpellManager {
                 this.effects.splice(i, 1);
             }
         }
+// --- EKLENTİ 1: BÜYÜ ÇARPIŞMASI (PRIORI INCANTATEM) ---
+        // Havada çarpışan rakip büyü mermilerini tespit edip patlatır
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            for (let j = i - 1; j >= 0; j--) {
+                const projA = this.projectiles[i];
+                const projB = this.projectiles[j];
 
+                // Büyüler aktifse ve farklı kişilere aitse çarpışma kontrolü yap
+                if (projA.active && projB.active && projA.owner !== projB.owner) {
+                    const distanceX = Math.abs(projA.x - projB.x);
+                    const distanceY = Math.abs(projA.y - projB.y);
+
+                    // Büyüler havada birbirine çok yaklaştıysa çarpışma gerçekleşir
+                    if (distanceX < 45 && distanceY < 35) {
+                        projA.active = false;
+                        projB.active = false;
+
+                        // Çarpışma noktasında patlama efekti ve ekran sarsıntısı tetikle
+                        const clashX = (projA.x + projB.x) / 2;
+                        const clashY = (projA.y + projB.y) / 2;
+
+                        this.game.triggerScreenShake(8, 0.2);
+                        this.game.audio.playExplosion();
+                        
+                        // Havaya parıltılar ve patlama halkası saç
+                        ParticleFactory.spawnFireExplosion(clashX, clashY, 15);
+                    }
+                }
+            }
+        }
         // --- DÜZELTME: KANALİZE SÜREKLİ BÜYÜLERİN MANA/CAN AKTİF ETKİLERİ ---
         [p1, p2].forEach(caster => {
             if (!caster.channelingSpell) return;
