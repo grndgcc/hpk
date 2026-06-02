@@ -337,7 +337,18 @@ class BloodOverlay {
         ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
         
         const size = 260;
-        ctx.drawImage(this.game.assets.images.blood, this.target.x - size / 2, this.target.y - 200, size, size);
+        const img = this.game.assets.images.blood;
+        
+        // GÜVENLİK KONTROLÜ: Kan görseli bulunamadıysa çizmeyip es geçerek çökmeyi önler
+        if (img && img.width > 0) {
+            ctx.drawImage(img, this.target.x - size / 2, this.target.y - 200, size, size);
+        } else {
+            // Yedek kan damlası parçacıkları
+            ctx.fillStyle = 'rgba(180, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.arc(this.target.x, this.target.y - 120, 15, 0, Math.PI * 2);
+            ctx.fill();
+        }
         
         ctx.restore();
     }
