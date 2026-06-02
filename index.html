@@ -126,6 +126,35 @@
             background: #d4af37;
             transform: scale(1.03);
         }
+
+        /* 1. Seçim ekranının Canvas'ın altında kalmasını engellemek için */
+#selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Canvas'ın üzerinde, kılavuz modalının altında yer alır */
+    background: rgba(12, 15, 18, 0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 2. Kartların seçilebilir olduğunu hissettiren imleç */
+.char-card {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* 3. Tıklanan kartın etrafında belirecek olan altın sarısı parlama efekti */
+.char-card.selected {
+    border-color: #d4af37;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+    transform: scale(1.03);
+}
     </style>
 </head>
 <body>
