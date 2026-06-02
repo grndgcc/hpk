@@ -1,42 +1,43 @@
 /**
  * ============================================================================
- * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ
+ * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ (1. AŞAMA)
  * ============================================================================
- * Bu sınıf; hem oyuncunun hem de yapay zekanın karakter varlıklarını tanımlar.
- * Karakterlerin can (HP), mana, ulti seviyeleri, durum makineleri (FSM),
- * yerçekimi/hareket fizikleri, kalkan emilimleri ve çizim katmanları burada işlenir.
+ * Bu dosya, düellodaki büyücülerin fizik simülasyonlarını, can/mana/ulti durumlarını,
+ * hasar alma, zehir yükü biriktirme ve gelişmiş animasyon kilitlerini yönetir.
  * 
- * Modüler Mimari Tasarımı (ES6):
- * - Karakter boyutları dikeyde her zaman 280 piksele kilitlenir.
- * - Çizim aşamasında animasyonların titrememesi için ayak basma merkezli hizalama kullanılır.
- * - Saniye cinsinden delta-time (dt) değerini 60 FPS standardına uyarlayarak fizikleri günceller.
+ * 1. Aşama Güncellemeleri:
+ * - Süzülmeli yüksek zıplama mekaniği eklendi (vy ve yerçekimi optimize edildi).
+ * - Büyü sözü söyleme duraklamasını sağlayan castDelayTimer entegre edildi.
+ * - Saldırı animasyonlarının loop etmeyip son karede donması sağlandı.
+ * - Voldemort kalkanının yön (mirror/flip) hatası giderildi.
+ * - Dengeli pacing için can sınırları artırıldı ve pasif ulti dolumu eklendi.
  */
 
 import { Engine, ParticleFactory } from './engine.js';
 
 /**
  * Karakterlerin kafalarının üzerinde beliren konuşma/büyü kutusu sınıfı.
- * Büyücü bir büyü fırlattığında veya konuşma yaptığında bu balon çizilir.
+ * Büyücü bir büyü fırlattığında büyü sözünü söylemesi için ekranda çizilir.
  */
 export class SpeechBubble {
     /**
-     * @param {string} text - Balonun içinde yazacak olan büyü ismi veya metin
-     * @param {number} x - Karakterin mevcut X koordinatı
-     * @param {number} y - Karakterin kafasının üst hizası
+     * @param {string} text - Balonun içinde yazacak olan büyü sözü
+     * @param {number} x - Karakterin X koordinatı
+     * @param {number} y - Karakterin kafa üstü koordinatı
      */
     constructor(text, x, y) {
         this.text = text;
         this.x = x;
         this.y = y;
-        this.maxLife = 0.83; // Yaklaşık 50 frame (0.83 saniye) ekranda kalır
+        this.maxLife = 1.0; // Büyü sözünün ekranda kalacağı süre (1 saniye)
         this.life = this.maxLife;
     }
 
     /**
-     * Konuşma balonunun zamanlayıcısını ve koordinatlarını günceller.
-     * @param {number} dt - Geçen zaman (saniye)
-     * @param {number} x - Karakterin yeni X koordinatı
-     * @param {number} y - Karakterin yeni kafa üstü koordinatı
+     * Balonun konumunu ve kalan süresini günceller.
+     * @param {number} dt - Geçen delta süresi (saniye)
+     * @param {number} x - Karakterin anlık X koordinatı
+     * @param {number} y - Karakterin anlık kafa üstü koordinatı
      */
     update(dt, x, y) {
         this.x = x;
@@ -45,36 +46,36 @@ export class SpeechBubble {
     }
 
     /**
-     * Konuşma balonunu şık bir arka plan kartı ve işaretçi üçgeniyle çizer.
+     * Konuşma balonunu şık bir koyu cam kartı ve altın çerçeveyle çizer.
      * @param {CanvasRenderingContext2D} ctx - Çizim yapılacak tuval referansı
      */
     draw(ctx) {
         if (this.life <= 0) return;
 
         ctx.save();
-        ctx.font = 'bold 15px Arial, sans-serif';
+        ctx.font = 'bold 16px "Cinzel", Arial, sans-serif';
         const metrics = ctx.measureText(this.text);
-        const paddingW = 16;
+        const paddingW = 18;
         const w = metrics.width + paddingW;
-        const h = 26;
+        const h = 28;
         
-        // Balonun çizileceği koordinatlar (Karakterin kafasının yukarısı)
+        // Balonun yerleşeceği kutu sınırları
         const rx = this.x - w / 2;
         const ry = this.y - 45 - h;
 
-        // Yumuşak geçişli opaklık (Fade-out)
+        // Yumuşak geçişli opaklık (Fade-out efekti)
         ctx.globalAlpha = Engine.clamp(this.life / 0.2, 0, 1);
 
-        // Balon Kartı Arka Planı (Koyu cam efekti)
-        ctx.fillStyle = 'rgba(12, 15, 18, 0.9)';
-        ctx.strokeStyle = '#d4af37'; // Hogwarts altın sarısı çerçeve
+        // Arka Plan Kartı
+        ctx.fillStyle = 'rgba(12, 15, 18, 0.92)';
+        ctx.strokeStyle = '#d4af37'; // Tematik altın rengi çerçeve
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.roundRect(rx, ry, w, h, 6);
         ctx.fill();
         ctx.stroke();
 
-        // Asa ucu yönlü küçük işaretçi üçgeni
+        // Aşağıyı (Asa ucunu) gösteren küçük işaretçi üçgeni
         ctx.fillStyle = '#d4af37';
         ctx.beginPath();
         ctx.moveTo(this.x - 6, ry + h);
@@ -82,8 +83,8 @@ export class SpeechBubble {
         ctx.lineTo(this.x, ry + h + 6);
         ctx.fill();
 
-        // Büyü İsmi Metni
-        ctx.fillStyle = '#fff';
+        // Metin Çizimi
+        ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.text, this.x, ry + h / 2 + 1);
@@ -93,12 +94,12 @@ export class SpeechBubble {
 }
 
 /**
- * Ana Karakter Yönetim Sınıfı
+ * Ana Karakter Yönetim Sınıfı (Büyücüler)
  */
 export class Character {
     /**
      * @param {string} type - 'voldemort' veya 'morgan'
-     * @param {boolean} isPlayer - Oyuncu mu yoksa yapay zeka mı olduğu bilgisi
+     * @param {boolean} isPlayer - Oyuncu mu yoksa yapay zeka mı?
      * @param {number} startX - Savaş alanındaki başlangıç X koordinatı
      * @param {object} game - GameOrchestrator referansı (Ana motor erişimi)
      * @param {object} config - Evrensel konfigürasyon değişkenleri
@@ -114,24 +115,31 @@ export class Character {
         this.y = this.config.FLOOR_Y;
         this.vx = 0;
         this.vy = 0;
-        this.height = 280; // Sabit boy kilidi (Tekken Standardı)
+        this.height = 280; // Sabit boy kilidi (Fighting Oyunu Standardı)
 
-        // Temel İstatistikler
-        this.hp = 100;
+        // Temel İstatistikler (Dengeleme ve daha uzun düellolar için can havuzu artırıldı)
+        this.maxHp = 250;
+        this.hp = this.maxHp;
         this.mana = 100;
         this.ultCharge = 0;
 
-        // Durum Değişkenleri (Durum Makinesi)
+        // Durum Değişkenleri (FSM)
         this.facingRight = isPlayer;
         this.isGrounded = true;
         this.isDucking = false;
         this.state = 'idle'; // 'idle', 'walk', 'cast', 'pain', 'stun', 'dead'
 
-        // Animasyon Zamanlayıcıları ve Sayaçları
+        // Animasyon Zamanlayıcıları ve Süreç Sayaçları
         this.animTimer = 0;
         this.walkCycleIndex = 0;
         this.painTimer = 0;
         this.stunTimer = 0;
+
+        // Madde 10: Büyü sözü söyleme ve animasyon duraklatma sayacı
+        this.castDelayTimer = 0; 
+
+        // Madde 3: Saldırı animasyonunun loop etmeyip son karede donmasını sağlayan süreölçer
+        this.castTimer = 0;
 
         // Büyü ve Kalkan Bayrakları
         this.shieldActive = false;
@@ -147,8 +155,8 @@ export class Character {
     }
 
     /**
-     * Karakterin kafasının üzerinde büyü ismi veya kelime yazdırır.
-     * @param {string} text - Söylenecek metin
+     * Karakterin kafasının üzerinde büyü ismi yazdırır.
+     * @param {string} text - Söylenecek büyü sözü
      */
     say(text) {
         this.bubble = new SpeechBubble(text, this.x, this.y - this.height);
@@ -156,18 +164,16 @@ export class Character {
 
     /**
      * Karakter hasar aldığında tetiklenen merkezi metod.
-     * Kalkan durumuna göre hasarı sönümler veya karakteri flinch (PAIN) durumuna sokar.
-     * 
      * @param {number} amount - Alınacak hasar miktarı
      * @param {boolean} bypassShield - Kalkanı (Protego) yok sayan patlamalı hasar mı?
      */
     takeDamage(amount, bypassShield = false) {
         if (this.state === 'dead') return;
 
-        // 1. Kalkan Koruması (Protego) Kontrolü
+        // Kalkan (Protego) aktifse ve gelen hasar kalkanı delmiyorsa hasarı engelle
         if (this.shieldActive && !bypassShield) {
             const dirX = this.facingRight ? 1 : -1;
-            // Engelleyici mavi parıltı kıvılcımları omuz/asa yüksekliğinde (y - 210) üretilir
+            // Engelleyici kıvılcımları asanın yüksekliğine (y - 210) hizala
             ParticleFactory.spawnShieldDeflect(this.x + dirX * 60, this.y - 210, dirX, 12);
             
             // Kalkan engellemesinde mavi renkli "PROTEGO" uçan yazısı fırlatır
@@ -177,7 +183,7 @@ export class Character {
             return;
         }
 
-        // 2. Can Değerinden Hasarı Düş
+        // Hasarı can değerinden düş
         this.hp = Math.max(0, this.hp - amount);
 
         // Alınan hasarı ekranda kırmızı renkle uçan hasar sayısı olarak fırlatır
@@ -185,12 +191,11 @@ export class Character {
             this.game.spells.addFloatingText("-" + Math.round(amount), this.x, this.y - 180, '#ff3333');
         }
 
-        // Hasar yenildiğinde kanalize edilen büyüleri anında kes
+        // Hasar yenildiğinde kanalize edilen büyüleri kes
         if (this.channelingSpell) {
             this.stopChannel();
         }
 
-        // 3. Durum Değişikliği (Ölüm veya Darbe Sarsılması)
         if (this.hp <= 0) {
             // Ölüm Durumu
             this.state = 'dead';
@@ -200,10 +205,11 @@ export class Character {
         } else {
             // Kısa Süreli Sarsılma (Flinch) Durumu
             this.state = 'pain';
-            this.painTimer = 0.3; // 0.3 saniye boyunca hareketi ve kalkanı kilitler
+            this.painTimer = 0.3; // 0.3 saniye boyunca kilitlenir
             this.vx = 0;
+            this.castDelayTimer = 0; // Hasar alındığında büyü hazırlığı iptal olur
             
-            // Hasar darbe kıvılcımları saç
+            // Hasar tipine göre darbe kıvılcımları saç
             ParticleFactory.spawnFireExplosion(this.x, this.y - 120, 5);
         }
     }
@@ -230,7 +236,7 @@ export class Character {
 
     /**
      * Delta-time entegrasyonlu fiziksel güncelleme döngüsü.
-     * @param {number} dt - Geçen zaman (saniye)
+     * @param {number} dt - İki kare arasında geçen süre (saniye)
      * @param {object} opponent - Karşıdaki rakip karakter referansı
      */
     update(dt, opponent) {
@@ -239,15 +245,27 @@ export class Character {
         // Her zaman rakibe doğru yönel (Dövüş oyunu standardı)
         this.facingRight = (opponent.x > this.x);
 
+        // Madde 11: Ultimate atılmasını kolaylaştırmak için saniyede pasif ulti birikimi eklendi
+        if (this.state !== 'dead') {
+            this.ultCharge = Math.min(100, this.ultCharge + 2.0 * dt); // Saniyede pasif +2.0 ulti şarjı
+        }
+
+        // Madde 10: Büyü sözü söyleme gecikmesi sayacını işlet
+        if (this.castDelayTimer > 0) {
+            this.castDelayTimer -= dt;
+            this.vx = 0; // Büyü hazırlığı sırasında karakterin yürümesini engelle
+        }
+
         // 1. Sersemletilme (STUN - Expelliarmus) Durum Kontrolü
         if (this.stunTimer > 0) {
             this.stunTimer -= dt;
             this.state = 'stun';
             this.vx = 0;
             this.shieldActive = false;
+            this.castDelayTimer = 0;
             this.stopChannel();
 
-            // Kafanın üzerinde dönen sersemleme pembe kıvılcımları saç
+            // Kafanın üzerinde dönen sersemleme kıvılcımları saç
             if (Math.random() < 0.25) {
                 ParticleFactory.spawnStunSparkles(this.x + (Math.random() * 40 - 20), this.y - this.height - 10, 2);
             }
@@ -262,7 +280,7 @@ export class Character {
             }
         }
 
-        // 3. Yanma (DoT) Hasar Hesaplamaları (Incendio Yakma Yükleri)
+        // 3. Yanma (DoT) Hasar Hesaplamaları (Morgan Incendio etkisi)
         if (this.burnStacks > 0) {
             this.burnTimer -= dt;
             this.burnTickAccumulator += dt;
@@ -270,7 +288,6 @@ export class Character {
             // Her 0.5 saniyede bir yanma hasarı ver
             if (this.burnTickAccumulator >= 0.5) {
                 this.burnTickAccumulator -= 0.5;
-                // Hasar biriken yüke (stack) göre katlanarak artar
                 const burnDamage = this.burnStacks * 0.75;
                 this.hp = Math.max(0, this.hp - burnDamage);
                 
@@ -315,8 +332,9 @@ export class Character {
         }
 
         // 6. Fiziksel Yerçekimi ve Zıplama İvmelenmesi
+        // Madde 4: Zıplayarak mermilerden kaçabilmek için dikey fizik süzülme çarpanı yumuşatıldı
         if (!this.isGrounded) {
-            this.vy += this.config.GRAVITY * 60 * dt; // Yerçekimini delta time ile ölçekle
+            this.vy += this.config.GRAVITY * 55 * dt; // Süzülme hissi için yerçekimi katsayısı ayarlandı
             this.y += this.vy * 60 * dt;
 
             if (this.y >= this.config.FLOOR_Y) {
@@ -333,14 +351,22 @@ export class Character {
         this.x = Math.max(80, Math.min(this.config.VIRTUAL_WIDTH - 80, this.x));
 
         // 7. Durum Öncelik Hiyerarşisi (State Machine Resolver)
+        // Madde 10: castDelayTimer sayacı aktifken karakterin cast durumunda kalması sağlandı (Sectumsempra düzeltmesi)
         if (this.state !== 'pain' && this.state !== 'dead' && this.state !== 'stun') {
-            if (this.shieldActive || this.channelingSpell) {
+            if (this.castDelayTimer > 0 || this.shieldActive || this.channelingSpell) {
                 this.state = 'cast';
             } else if (Math.abs(this.vx) > 0.1) {
                 this.state = 'walk';
             } else {
                 this.state = 'idle';
             }
+        }
+
+        // Madde 3: Saldırı animasyonunun son karede kilitlenmesi için castTimer takibi
+        if (this.state === 'cast') {
+            this.castTimer += dt;
+        } else {
+            this.castTimer = 0;
         }
 
         // 8. Konuşma Balonunun Güncellenmesi
@@ -354,7 +380,7 @@ export class Character {
         // 9. Yürüme Karelerinin Hız Çarpan Takibi
         if (this.state === 'walk') {
             this.animTimer += dt;
-            // Saniyede 12 kare yürüme canlandırma hızı (0.08 saniyede bir kare değişir)
+            // Saniyede 12 kare yürüme canlandırma hızı
             if (this.animTimer >= 0.08) {
                 this.animTimer -= 0.08;
                 this.walkCycleIndex = (this.walkCycleIndex + 1) % 7;
@@ -371,19 +397,19 @@ export class Character {
         
         let mustFlip = !this.facingRight;
         
-        // Akıllı Yedekleme Sistemi (Güvenli varsayılan ayakta durma karesi atandı)
+        // Akıllı Yedekleme Sistemi (Görsellerin yüklenememesi ihtimaline karşı varsayılan ayakta durma görseli)
         const standImg = this.type === 'voldemort' ? this.game.assets.images.voldemortstand : this.game.assets.images.morganstand;
         let img = standImg;
 
-        // Akıllı Yedekleme Sistemi (Eğer animasyon karesi sunucuda yoksa karakter görünmez olmak yerine ayakta durma karesine döner)
+        // Durum kalkanına göre doğru sprite karesini seç
         if (this.type === 'voldemort') {
             if (this.state === 'dead') {
                 img = this.game.assets.images.voldemortwalk1 || standImg; // Yerde yatış tabanı
             } else if (this.state === 'pain') {
                 img = this.game.assets.images.voldemortwalk4 || standImg; // Darbe alma karesi
             } else if (this.state === 'cast') {
-                // Kanalizasyon veya saldırı kareleri arasında zamansal döngü
-                const attackIndex = Math.floor(Date.now() / 150) % 3;
+                // Madde 3: Saldırı animasyonunun loop etmeyip son karede (Frame 3) donma mantığı
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.1)); // 100ms'de bir kare atlar, maksimum 2. indekste (Frame 3) donar
                 img = this.game.assets.images[`voldemortattack${attackIndex + 1}`] || standImg;
             } else if (this.state === 'walk') {
                 img = this.game.assets.images[`voldemortwalk${this.walkCycleIndex + 1}`] || standImg;
@@ -394,14 +420,15 @@ export class Character {
             } else if (this.state === 'pain') {
                 img = this.game.assets.images.morganwalk4 || standImg;
             } else if (this.state === 'cast') {
-                const attackIndex = Math.floor(Date.now() / 150) % 3;
+                // Madde 3: Morgan saldırı animasyonu son karesinde sabitlenir
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.1));
                 img = this.game.assets.images[`morganattack${attackIndex + 1}`] || standImg;
             } else if (this.state === 'walk') {
                 img = this.game.assets.images[`morganwalk${this.walkCycleIndex + 1}`] || standImg;
             }
         }
 
-        // Son koruma önlemi (Görsel tamamen bulunamadıysa çizimi durdur, oyunu çökertme)
+        // Son koruma önlemi (Görsel tamamen bulunamadıysa çizimi güvenle durdur)
         if (!img) {
             ctx.restore();
             return;
@@ -443,13 +470,19 @@ export class Character {
         // 10. Protego Kalkanı Çizimi (Gövde merkezli titreşimli kalkan)
         if (this.shieldActive) {
             ctx.save();
-            const pulse = 1 + Math.sin(Date.now() / 100) * 0.05; // Kalkanın hafif titreme dalgası
+            const pulse = 1 + Math.sin(Date.now() / 100) * 0.05; // Titreşim dalgası
             const pSize = 340 * pulse;
-            const px = this.x;
-            const py = this.y - 140; // Gövde merkez hizalaması
+            
+            // Madde 8: Voldemort'un ve Morgan'ın Protego kalkanının yön (mirror/flipX) ve el hizalaması düzeltildi
+            const shieldOffset = this.facingRight ? 60 : -60;
+            const px = this.x + shieldOffset;
+            const py = this.y - 145; // Göğüs ve asa hizası merkezi
 
             ctx.globalAlpha = 0.8;
-            Engine.drawRotatedImage(ctx, this.game.assets.images.protego, px, py, pSize, pSize, 0, 0.8, false, 0.5, 0.5);
+            
+            // Baktığı yöne göre kalkan görselini yatayda ters çevir (flipX)
+            const flipShield = !this.facingRight;
+            Engine.drawRotatedImage(ctx, this.game.assets.images.protego, px, py, pSize, pSize, 0, 0.8, flipShield, 0.5, 0.5);
             ctx.restore();
         }
 
