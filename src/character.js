@@ -1,17 +1,3 @@
-/**
- * ============================================================================
- * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ
- * ============================================================================
- * Bu sınıf; hem oyuncunun hem de yapay zekanın karakter varlıklarını tanımlar.
- * Karakterlerin can (HP), mana, ulti seviyeleri, durum makineleri (FSM),
- * yerçekimi/hareket fizikleri, kalkan emilimleri ve çizim katmanları burada işlenir.
- * 
- * Modüler Mimari Tasarımı (ES6):
- * - Karakter boyutları dikeyde her zaman 280 piksele kilitlenir.
- * - Çizim aşamasında animasyonların titrememesi için ayak basma merkezli hizalama kullanılır.
- * - Saniye cinsinden delta-time (dt) değerini 60 FPS standardına uyarlayarak fizikleri günceller.
- */
-
 import { Engine, ParticleFactory } from './engine.js';
 
 /**
@@ -374,6 +360,23 @@ export class Character {
             }
         }
 
+        // GÜVENLİK ÖNLEMİ (FALLBACK):
+        // Eğer istenen animasyon karesi yüklenemediyse (undefined ise), varsayılan duruş görseline geri dön.
+        let defaultImg = this.type === 'voldemort' ? this.game.assets.images.voldemortstand : this.game.assets.images.morganstand;
+        if (!img) {
+            img = defaultImg;
+        }
+
+        // İKİNCİL GÜVENLİK ÖNLEMİ:
+        // Eğer hiçbir görsel bulunamadıysa (örneğin ayakta duruş görseli de eksikse), 
+        // tarayıcıda oyunun çökmesini önlemek için basit renkli bir placeholder kutu çizer.
+        if (!img || img.width === 0) {
+            ctx.fillStyle = this.type === 'voldemort' ? '#1b5e20' : '#4a148c'; // Voldemort için yeşil, Morgan için mor kutu
+            ctx.fillRect(this.x - 50, this.y - this.height, 100, this.height);
+            ctx.restore();
+            return;
+        }
+
         // Görsel genişliğini, asimetrik dikey bozulmayı önleyecek şekilde yüksekliğe oranla koru
         const aspect = img.width / img.height;
         const drawH = this.height;
@@ -415,8 +418,11 @@ export class Character {
             const px = this.x;
             const py = this.y - 120; // Gövde merkez hizalaması
 
-            ctx.globalAlpha = 0.8;
-            Engine.drawRotatedImage(ctx, this.game.assets.images.protego, px, py, pSize, pSize, 0, 0.8, false, 0.5, 0.5);
+            const protegoImg = this.game.assets.images.protego;
+            if (protegoImg) {
+                ctx.globalAlpha = 0.8;
+                Engine.drawRotatedImage(ctx, protegoImg, px, py, pSize, pSize, 0, 0.8, false, 0.5, 0.5);
+            }
             ctx.restore();
         }
 
