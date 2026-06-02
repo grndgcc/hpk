@@ -296,7 +296,20 @@ class ExplosionEffect {
         ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
         
         const img = this.life > (this.maxLife / 2) ? this.game.assets.images.confringo3 : this.game.assets.images.confringo4;
-        ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        
+        // GÜVENLİK KONTROLÜ: Görsel yoksa veya yüklenmediyse oyunu çökertme, yedek vektör çiz!
+        if (img && img.width > 0) {
+            ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        } else {
+            // Yedek patlama halkası (Görsel hatasında oyunun durmasını önler)
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 90, 0, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = '#ff3300';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
         
         ctx.restore();
     }
