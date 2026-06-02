@@ -100,31 +100,31 @@ export class Character {
     say(text) {
         this.bubble = new SpeechBubble(text, this.x, this.y - this.height);
     }
-takeDamage(amount, bypassShield = false) {
+
+    takeDamage(amount, bypassShield = false) {
         if (this.state === 'dead') return;
 
         if (this.shieldActive && !bypassShield) {
             const dirX = this.facingRight ? 1 : -1;
             ParticleFactory.spawnShieldDeflect(this.x + dirX * 60, this.y - 210, dirX, 12);
             
-            // <-- EKLENDİ: Kalkan engellemesinde mavi PROTEGO yazısı fırlatır
-            this.game.spells.addFloatingText("PROTEGO", this.x, this.y - 230, '#3399ff');
+            // Kalkan engellemesinde mavi PROTEGO yazısı fırlatır
+            if (this.game && this.game.spells) {
+                this.game.spells.addFloatingText("PROTEGO", this.x, this.y - 230, '#3399ff');
+            }
             return;
         }
 
         this.hp = Math.max(0, this.hp - amount);
 
-        // <-- EKLENDİ: Alınan hasarı ekranda kırmızı renkle gösterir (Küsuratları yuvarlar)
-        if (amount >= 1) {
+        // Alınan hasarı ekranda kırmızı renkle gösterir
+        if (amount >= 1 && this.game && this.game.spells) {
             this.game.spells.addFloatingText("-" + Math.round(amount), this.x, this.y - 180, '#ff3333');
         }
 
         if (this.channelingSpell) {
             this.stopChannel();
         }
-
-        // ... (Ölüm veya acı animasyonunun tetiklendiği mevcut kodlar devam eder) ...
-
 
         if (this.hp <= 0) {
             this.state = 'dead';
@@ -213,7 +213,6 @@ takeDamage(amount, bypassShield = false) {
             if (this.mana <= 0 && this.shieldActive) {
                 this.shieldActive = false;
                 this.game.triggerScreenShake(5, 0.15);
-                // DÜZELTME: Kalkan kırılma efekti asanın yüksekliğine (y - 210) hizalandı
                 ParticleFactory.spawnShieldDeflect(this.x, this.y - 210, this.facingRight ? 1 : -1, 8);
             }
         }
@@ -268,11 +267,9 @@ takeDamage(amount, bypassShield = false) {
         
         let mustFlip = !this.facingRight;
         
-        // DÜZELTME: Güvenli varsayılan ayakta durma karesi atandı
         const standImg = this.type === 'voldemort' ? this.game.assets.images.voldemortstand : this.game.assets.images.morganstand;
         let img = standImg;
 
-        // DÜZELTME: Eğer animasyon karesi boşsa karakterin görünmez olmaması için standImg ile yedekleme yapıldı
         if (this.type === 'voldemort') {
             if (this.state === 'dead') {
                 img = this.game.assets.images.voldemortwalk1 || standImg;
@@ -297,7 +294,6 @@ takeDamage(amount, bypassShield = false) {
             }
         }
 
-        // Son güvence
         if (!img) {
             ctx.restore();
             return;
