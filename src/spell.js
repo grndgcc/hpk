@@ -693,7 +693,9 @@ if (swirlImg && swirlImg.width > 0) {
 
                 ctx.translate(startX, startY);
                 ctx.rotate(angle);
-                ctx.drawImage(flameImg, 0, -55, actualFlameDistance, 110);
+               if (flameImg && flameImg.width > 0) {
+    ctx.drawImage(flameImg, 0, -55, actualFlameDistance, 110);
+}
                 ctx.restore();
             }
         });
