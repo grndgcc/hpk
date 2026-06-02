@@ -2,17 +2,14 @@
  * ============================================================================
  * HOGWARTS DUEL - BÜYÜ FİZİĞİ & PROJEKTİL / EFEKT YÖNETİCİSİ
  * ============================================================================
- * Bu modül; asadan çıkan projektil büyülerin uçuş fizikleri, kalkan etkileşimleri,
- * çarpışma algılamaları (Hitbox-Hurtbox), Confringo patlamaları, kan birikintileri
- * ve sürekli kanalize edilen ışın/alev çizim sistemlerini koordine eder.
- * 
- * Modüler Mimari Tasarımı (ES6):
- * - Büyü fırlatma süreçleri delta time (dt) tabanlıdır.
- * - Karakterin ayakta veya eğiliyor olma durumuna göre hasar alma kutuları (Hurtbox) dinamik hesaplanır.
  */
 
-import { Engine, Vector2, ParticleFactory } from './engine.js';
-import { particles } from './main.js';
+// ESKİ HALİ:
+// import { Engine, Vector2, ParticleFactory } from './engine.js';
+// import { particles } from './main.js';
+
+// YENİ GÜNCELLENMİŞ HALİ:
+import { Engine, Vector2, ParticleFactory, particles } from './engine.js';
 
 /**
  * Uçuş Yolculuğu Yapan Projektil Büyüler Sınıfı
@@ -145,7 +142,7 @@ export class Projectile {
         let isFlipped = this.vx < 0;
 
         if (this.type === 'confringo') {
-            // Havada giderken confringo1 ve confringo2 kareleri arasında titreşerek uçar
+            // Havada giderken confringo1 ve confringo2 kareleri arasında vitreşerek uçar
             img = this.game.assets.images[`confringo${Math.floor(Date.now() / 100) % 2 + 1}`];
         } else if (this.type === 'sectumsempra') {
             // Sinsi büyü: İlk 420 piksel boyunca neredeyse görünmezdir (Hafif bir hava dalgası)
