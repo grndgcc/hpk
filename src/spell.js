@@ -227,37 +227,47 @@ class AvadaKedavraBeam {
         ctx.restore();
     }
 }
-
 export class SpellManager {
     constructor(game) {
         this.game = game;
         this.projectiles = [];
         this.effects = [];
+        this.floatingTexts = []; // <-- EKLENDİ: Yazıları tutacak havuz
     }
 
     clearAll() {
         this.projectiles = [];
         this.effects = [];
+        this.floatingTexts = []; // <-- EKLENDİ
     }
 
-    addProjectile(proj) {
-        this.projectiles.push(proj);
-    }
-
-    addEffect(eff) {
-        this.effects.push(eff);
+    // <-- EKLENDİ: Dışarıdan yazı eklemeyi sağlayan fonksiyon
+    addFloatingText(text, x, y, color) {
+        this.floatingTexts.push(new FloatingText(text, x, y, color));
     }
 
     update(dt, p1, p2) {
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const proj = this.projectiles[i];
-            const target = (proj.owner === p1) ? p2 : p1;
-            proj.update(dt, target);
+        // ... (Mevcut mermi ve efekt güncellemeleri) ...
 
-            if (!proj.active) {
-                this.projectiles.splice(i, 1);
+        // <-- EKLENDİ: Yazıları güncelleme döngüsü
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.update(dt);
+            if (ft.life <= 0) {
+                this.floatingTexts.splice(i, 1);
             }
         }
+    }
+
+    draw(ctx) {
+        this.effects.forEach(eff => eff.draw(ctx));
+        this.projectiles.forEach(proj => proj.draw(ctx));
+        this.drawContinuousChannels(ctx);
+        
+        // <-- EKLENDİ: Yazıları çizdirme döngüsü
+        this.floatingTexts.forEach(ft => ft.draw(ctx));
+    }
+}
 
         for (let i = this.effects.length - 1; i >= 0; i--) {
             const eff = this.effects[i];
