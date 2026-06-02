@@ -1,81 +1,37 @@
-# Let's write the corrected src/engine.js
-# In engine.js, we will define and export:
-# export const particles = [];
-# This breaks the circular dependency!
-
-engine_js_fixed = """/**
- * ============================================================================
- * HOGWARTS DUEL - UTILITY MOTORU & GÖRSEL/FİZİK YARDIMCI KÜTÜPHANESİ
- * ============================================================================
- * Bu sınıf; oyunun tüm görsel çizim, rotasyon, fiziksel çarpışma algılamaları
- * ve matematiksel interpolasyon (Lerp, Clamp) süreçlerini üstlenir. Tekken tarzı
- * milimetrik kutu etkileşimleri ve parçacık sistemleri burada formüle edilmiştir.
- * 
- * Modüler Mimari Tasarımı (ES6):
- * - Tamamen statik ve yardımcı sınıflardan oluşur.
- * - Çizim aşamasında CPU/GPU yükünü azaltmak amacıyla matris dönüşümlerini optimize eder.
- */
-
-// --- GLOBAL AKTİF PARÇACIK HAVUZU (Circular Dependency'i engellemek için engine.js'e taşındı) ---
 export const particles = [];
 
-/**
- * 2D Vektör ve Fizik Yardımcı Sınıfı
- */
 export class Vector2 {
     constructor(x = 0, y = 0) {
         this.x = x;
         this.y = y;
     }
 
-    /**
-     * İki nokta arasındaki Öklid mesafesini hesaplar.
-     */
     static distance(x1, y1, x2, y2) {
         const dx = x2 - x1;
         const dy = y2 - y1;
         return Math.hypot(dx, dy);
     }
 
-    /**
-     * İki nokta arasındaki açıyı radyan cinsinden döner.
-     */
     static angleBetween(startX, startY, endX, endY) {
         return Math.atan2(endY - startY, endX - startX);
     }
 }
 
-/**
- * İleri Düzey Matematiksel ve Grafiksel Yardımcı Sınıfı
- */
 export class Engine {
-    
-    /**
-     * Değeri minimum ve maksimum sınırlar arasında kilitler.
-     */
     static clamp(val, min, max) {
         return Math.max(min, Math.min(max, val));
     }
 
-    /**
-     * Lineer İnterpolasyon (Yumuşak Değer Geçişi)
-     */
     static lerp(start, end, amt) {
         return (1 - amt) * start + amt * end;
     }
 
-    /**
-     * Tıklama koordinatlarını sanal düzleme çevirir.
-     */
     static windowToCanvas(windowX, windowY, game) {
         const x = (windowX - game.offsetX) / game.scaleX;
         const y = (windowY - game.offsetY) / game.scaleY;
         return { x, y };
     }
 
-    /**
-     * AABB Çarpışma Testi
-     */
     static rectCollision(rx1, ry1, rw1, rh1, rx2, ry2, rw2, rh2) {
         return rx1 < rx2 + rw2 &&
                rx1 + rw1 > rx2 &&
@@ -83,9 +39,6 @@ export class Engine {
                ry1 + rh1 > ry2;
     }
 
-    /**
-     * Dairesel ve Dikdörtgensel Çarpışma Testi
-     */
     static circleRectCollision(cx, cy, radius, rx, ry, rw, rh) {
         const closestX = Math.max(rx, Math.min(cx, rx + rw));
         const closestY = Math.max(ry, Math.min(cy, ry + rh));
@@ -97,9 +50,6 @@ export class Engine {
         return distanceSquared < (radius * radius);
     }
 
-    /**
-     * Dönüş Açısı ve Çapa Noktası Destekli Çizim Yardımcısı
-     */
     static drawRotatedImage(ctx, img, x, y, width, height, angle = 0, alpha = 1, flipX = false, anchorX = 0.5, anchorY = 0.5) {
         if (!img || img.width === 0) return;
 
@@ -122,9 +72,6 @@ export class Engine {
         ctx.restore();
     }
 
-    /**
-     * Büyü şimşekleri ve alevleri germe yardımcısı.
-     */
     static drawStretchedBeam(ctx, img, startX, startY, endX, endY, beamHeight, alpha = 1, scaleY = 1) {
         if (!img || img.width === 0) return;
 
@@ -142,9 +89,6 @@ export class Engine {
         ctx.restore();
     }
 
-    /**
-     * Renkler arası geçiş (Küle dönüşme)
-     */
     static interpolateColor(color1, color2, factor) {
         const r = Math.round(color1.r + (color2.r - color1.r) * factor);
         const g = Math.round(color1.g + (color2.g - color1.g) * factor);
@@ -153,9 +97,6 @@ export class Engine {
     }
 }
 
-/**
- * Görsel Parçacık Sınıfı
- */
 export class EngineParticle {
     constructor(x, y, colorRGB, endColorRGB, size, vx, vy, life = 1.0, gravity = 0) {
         this.x = x;
@@ -192,9 +133,6 @@ export class EngineParticle {
     }
 }
 
-/**
- * Parçacık Tetikleyicileri
- */
 export class ParticleFactory {
     static spawnFireExplosion(x, y, count = 20) {
         for (let i = 0; i < count; i++) {
@@ -266,9 +204,3 @@ export class ParticleFactory {
         }
     }
 }
-"""
-
-with open("src/engine.js", "w", encoding="utf-8") as f:
-    f.write(engine_js_fixed)
-
-print("engine.js successfully overwritten with fixed circular-dependency-free code.")
