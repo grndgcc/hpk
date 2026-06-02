@@ -231,7 +231,9 @@ export class Projectile {
         let img = this.game.assets.images.sectumsempra;
         let isFlipped = this.vx < 0;
 
-        if (this.type === 'sectumsempra') {
+        if (this.type === 'confringo') {
+            img = this.game.assets.images[`confringo${Math.floor(Date.now() / 100) % 2 + 1}`];
+        } else if (this.type === 'sectumsempra') {
             if (this.distanceTravelled < 420) {
                 ctx.save();
                 ctx.globalAlpha = 0.05; 
@@ -245,13 +247,13 @@ export class Projectile {
 
             // --- EXPELLIARMUS ULTI MERMİSİ İÇİN KIRMIZI ŞİMŞEK KUYRUKLARI ---
             ctx.save();
-            ctx.strokeStyle = '#ff0033'; // Parlak kırmızı elektrik
+            ctx.strokeStyle = '#ff0033'; // Parlak kızıl şimşek rengi
             ctx.shadowColor = '#ff0055';
             ctx.shadowBlur = 12;
             ctx.lineWidth = 2 + Math.random() * 2;
             
             const trailDirection = this.vx > 0 ? -1 : 1;
-            // Arkaya doğru uzanan 3 kırıklı şimşek hattı oluştur
+            // Arkaya doğru uzanan 3 kırıklı kızıl elektrik hattı oluşturur
             for (let t = 0; t < 3; t++) {
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
