@@ -4094,6 +4094,17 @@ class GameOrchestrator {
  function castSpell(caster, target, index) {
     if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain' || caster.castDelayTimer > 0) return;
 
+// Çok oyunculu modda sadece kendi karakterimiz büyü yaptığında karşıya paket gönderelim
+    if (game.isMultiplayer) {
+        const isLocalCaster = (myRole === 'host' && caster === game.p1) || (myRole === 'guest' && caster === game.p2);
+        if (isLocalCaster && conn && conn.open) {
+            conn.send({
+                type: 'cast-spell',
+                index: index
+            });
+        }
+    }
+     
     if (caster.type === 'voldemort') {
         if (index === 1) { // Confringo
             if (caster.mana >= 25) {
