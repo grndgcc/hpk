@@ -1859,7 +1859,7 @@ if (swirlImg && swirlImg.width > 0) {
             if (Math.random() < 0.25) {
                 ParticleFactory.spawnStunSparkles(this.x + (Math.random() * 40 - 20), this.y - this.height - 10, 2);
             }
-        }
+        
 
         // 2. Darbe Alma (PAIN) Geri Kazanım Kontrolü
         if (this.state === 'pain') {
@@ -4221,6 +4221,22 @@ window.addEventListener('click', () => {
         </div>
         
         <!-- Düelloya Başlatıcı Buton -->
+        <!-- SES AYARLARI PANELİ -->
+<div class="audio-settings-panel">
+    <h3>SES AYARLARI</h3>
+    <div class="setting-row">
+        <label for="vol-music">Arka Plan Müziği:</label>
+        <input type="range" id="vol-music" min="0" max="1" step="0.05" value="0.30">
+    </div>
+    <div class="setting-row">
+        <label for="vol-sfx">Büyü & Efektler:</label>
+        <input type="range" id="vol-sfx" min="0" max="1" step="0.05" value="0.70">
+    </div>
+    <div class="setting-row">
+        <label for="vol-voice">Karakter Sesleri:</label>
+        <input type="range" id="vol-voice" min="0" max="1" step="0.05" value="0.80">
+    </div>
+</div>
         <button id="start-btn">DÜELLOYA BAŞLA</button>
     </div>
 
