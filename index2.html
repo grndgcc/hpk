@@ -2125,7 +2125,23 @@ if (swirlImg && swirlImg.width > 0) {
         this.themeAudio = null;
         this.incendioAudio = null;
     }
+  // Arayüzdeki slider değerlerini okuyup ses seviyelerini güncelleyen yeni fonksiyon:
+    updateVolumes() {
+        const musicVol = parseFloat(document.getElementById('vol-music')?.value || 0.5);
+        const sfxVol = parseFloat(document.getElementById('vol-sfx')?.value || 0.5);
 
+        // Arka plan müzik seviyesini güncelle
+        if (this.themeAudio) {
+            this.themeAudio.volume = musicVol * 0.30; // Ölçeklendirilmiş varsayılan seviye
+        }
+        
+        // Aktif devam eden büyü seslerini (Incendio vb.) güncelle
+        if (this.incendioAudio) {
+            this.incendioAudio.volume = sfxVol * 0.65;
+        }
+    }
+
+    // ... (diğer metodlar)
     /**
      * Tarayıcı güvenlik politikası gereği, kullanıcının ekrana ilk dokunuşunda
      * ses motorunu uyandırır ve aktifleştirir.
@@ -4088,7 +4104,20 @@ window.addEventListener('click', () => {
         game.audio.playTheme();
     }
 }, { once: true });
-    
+    // GÜNCELLEME: Ses ayar sürgüleri (sliders) için anlık dinleyici köprüsü
+const musicSlider = document.getElementById('vol-music');
+const sfxSlider = document.getElementById('vol-sfx');
+const voiceSlider = document.getElementById('vol-voice');
+
+[musicSlider, sfxSlider, voiceSlider].forEach(slider => {
+    if (slider) {
+        slider.addEventListener('input', () => {
+            if (game.audio) {
+                game.audio.updateVolumes();
+            }
+        });
+    }
+});
     </script>
 </head>
 <body>
