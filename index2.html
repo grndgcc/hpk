@@ -4249,6 +4249,8 @@ let isReadyLocal = false;    // Kendi hazır durumumuz
 let isReadyOpponent = false; // Rakibin hazır durumu
 let roomCode = null;
 
+        let opponentChar = 'morgan'; // Rakibin karakter seçimini saklayacağımız değişken
+
 // A. Tek Oyunculu Mod Butonu (AI Karşılaşması)
 if (startSingleBtn) {
     startSingleBtn.addEventListener('click', () => {
@@ -4349,14 +4351,48 @@ function setupConnectionListeners() {
     });
 
     // Karşı taraftan veri paketi geldiğinde
+   // Karşı taraftan veri geldiğinde
     conn.on('data', (data) => {
         if (data.type === 'ready-status') {
             isReadyOpponent = data.isReady;
+            opponentChar = data.charType; // Rakibin seçtiği karakteri kaydet
             updateReadyVisuals();
 
-            // Her iki oyuncu da hazırsa oyunu başlat
+            // İki oyuncu da hazırsa oyunu başlat
             if (isReadyLocal && isReadyOpponent) {
                 startGamePlay();
+            }
+        }
+        // 1. Fiziksel Konum ve Durum Eşitleme
+        else if (data.type === 'state-sync') {
+            const remoteChar = (myRole === 'host') ? game.p2 : game.p1;
+            if (remoteChar) {
+                remoteChar.x = data.x;
+                remoteChar.y = data.y;
+                remoteChar.vx = data.vx;
+                remoteChar.vy = data.vy;
+                remoteChar.hp = data.hp;
+                remoteChar.mana = data.mana;
+                remoteChar.ultCharge = data.ultCharge;
+                remoteChar.state = data.state;
+                remoteChar.shieldActive = data.shieldActive;
+                remoteChar.isDucking = data.isDucking;
+                remoteChar.isGrounded = data.isGrounded;
+                remoteChar.facingRight = data.facingRight;
+                remoteChar.channelingSpell = data.channelingSpell;
+                remoteChar.walkCycleIndex = data.walkCycleIndex;
+                remoteChar.castDelayTimer = data.castDelayTimer;
+                remoteChar.castTimer = data.castTimer;
+            }
+        }
+        // 2. Büyü Tetikleme Senkronizasyonu
+        else if (data.type === 'cast-spell') {
+            const remoteCaster = (myRole === 'host') ? game.p2 : game.p1;
+            const localTarget = (myRole === 'host') ? game.p1 : game.p2;
+            if (remoteCaster && localTarget) {
+                // Güvenli tetikleme için global köprüyü çağıralım
+                const originalCast = window.castSpell || castSpell;
+                originalCast(remoteCaster, localTarget, data.index);
             }
         }
     });
