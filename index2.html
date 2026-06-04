@@ -3054,16 +3054,11 @@ const castSpellWrapper = (caster, target, index) => {
             }
 
             // DÜZELTME: gameRunning yerine currentState kontrolü sağlandı
+           // Tuş haritalandırmasına göre büyüleri tetikle
             if (this.game.currentState === 'PLAYING' && this.game.p1 && this.game.p1.state !== 'dead') {
-                if (key === '2' || key === 'k') {
-                    this.triggerSpellAction(1);
-                }
-                if (key === '3' || key === 'l') {
-                    this.triggerSpellAction(2);
-                }
-                if (key === '4' || key === 'i') {
-                    this.triggerSpellAction(3);
-                }
+                if (this.keyMap.SPELL1.includes(key)) this.triggerSpellAction(1);
+                if (this.keyMap.SPELL2.includes(key)) this.triggerSpellAction(2);
+                if (this.keyMap.ULTIMATE.includes(key)) this.triggerSpellAction(3);
             }
         });
 
@@ -3072,15 +3067,11 @@ const castSpellWrapper = (caster, target, index) => {
             this.keys[key] = false;
 
             if (this.game.currentState === 'PLAYING' && this.game.p1) {
-                if (this.game.p1.type === 'voldemort' && (key === '3' || key === 'l')) {
-                    if (this.game.p1.channelingSpell === 'crucio') {
-                        this.game.p1.stopChannel();
-                    }
+                if (this.game.p1.type === 'voldemort' && this.keyMap.SPELL2.includes(key)) {
+                    if (this.game.p1.channelingSpell === 'crucio') this.game.p1.stopChannel();
                 }
-                if (this.game.p1.type === 'morgan' && (key === '2' || key === 'k')) {
-                    if (this.game.p1.channelingSpell === 'incendio') {
-                        this.game.p1.stopChannel();
-                    }
+                if (this.game.p1.type === 'morgan' && this.keyMap.SPELL1.includes(key)) {
+                    if (this.game.p1.channelingSpell === 'incendio') this.game.p1.stopChannel();
                 }
             }
         });
