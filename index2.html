@@ -656,6 +656,3437 @@ canvas {
     transform: scale(1.03);
 }
     </style>
+
+    <script type="module">  
+    export const particles = [];
+
+export class Vector2 {
+    constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+    }
+
+    static distance(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.hypot(dx, dy);
+    }
+
+    static angleBetween(startX, startY, endX, endY) {
+        return Math.atan2(endY - startY, endX - startX);
+    }
+}
+
+export class Engine {
+    static clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+    }
+
+    static lerp(start, end, amt) {
+        return (1 - amt) * start + amt * end;
+    }
+
+    static windowToCanvas(windowX, windowY, game) {
+        const x = (windowX - game.offsetX) / game.scaleX;
+        const y = (windowY - game.offsetY) / game.scaleY;
+        return { x, y };
+    }
+
+    static rectCollision(rx1, ry1, rw1, rh1, rx2, ry2, rw2, rh2) {
+        return rx1 < rx2 + rw2 &&
+               rx1 + rw1 > rx2 &&
+               ry1 < ry2 + rh2 &&
+               ry1 + rh1 > ry2;
+    }
+
+    static circleRectCollision(cx, cy, radius, rx, ry, rw, rh) {
+        const closestX = Math.max(rx, Math.min(cx, rx + rw));
+        const closestY = Math.max(ry, Math.min(cy, ry + rh));
+
+        const distanceX = cx - closestX;
+        const distanceY = cy - closestY;
+        
+        const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+        return distanceSquared < (radius * radius);
+    }
+
+    static drawRotatedImage(ctx, img, x, y, width, height, angle = 0, alpha = 1, flipX = false, anchorX = 0.5, anchorY = 0.5) {
+        if (!img || img.width === 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(x, y);
+
+        if (flipX) {
+            ctx.scale(-1, 1);
+        }
+
+        if (angle !== 0) {
+            ctx.rotate(angle);
+        }
+
+        const dx = -width * anchorX;
+        const dy = -height * anchorY;
+
+        ctx.drawImage(img, dx, dy, width, height);
+        ctx.restore();
+    }
+
+    static drawStretchedBeam(ctx, img, startX, startY, endX, endY, beamHeight, alpha = 1, scaleY = 1) {
+        if (!img || img.width === 0) return;
+
+        const distance = Vector2.distance(startX, startY, endX, endY);
+        const angle = Vector2.angleBetween(startX, startY, endX, endY);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(startX, startY);
+        ctx.rotate(angle);
+
+        const dy = -(beamHeight * scaleY) / 2;
+        ctx.drawImage(img, 0, dy, distance, beamHeight * scaleY);
+
+        ctx.restore();
+    }
+
+    static interpolateColor(color1, color2, factor) {
+        const r = Math.round(color1.r + (color2.r - color1.r) * factor);
+        const g = Math.round(color1.g + (color2.g - color1.g) * factor);
+        const b = Math.round(color1.b + (color2.b - color1.b) * factor);
+        return `rgb(${r},${g},${b})`;
+    }
+}
+
+export class EngineParticle {
+    constructor(x, y, colorRGB, endColorRGB, size, vx, vy, life = 1.0, gravity = 0) {
+        this.x = x;
+        this.y = y;
+        this.colorRGB = colorRGB;
+        this.endColorRGB = endColorRGB;
+        this.size = size;
+        this.vx = vx;
+        this.vy = vy;
+        this.maxLife = life;
+        this.life = life;
+        this.gravity = gravity;
+    }
+
+    update(dt) {
+        this.vy += this.gravity * dt;
+        this.x += this.vx * 60 * dt;
+        this.y += this.vy * 60 * dt;
+        this.life -= dt;
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+
+        ctx.save();
+        const factor = 1 - (this.life / this.maxLife);
+        ctx.fillStyle = Engine.interpolateColor(this.colorRGB, this.endColorRGB, factor);
+        ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+export class ParticleFactory {
+    static spawnFireExplosion(x, y, count = 20) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 5;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+            const size = 3 + Math.random() * 5;
+            const life = 0.5 + Math.random() * 0.7;
+
+            particles.push(new EngineParticle(
+                x, y, 
+                { r: 255, g: 150, b: 0 },
+                { r: 40, g: 40, b: 40 },
+                size, vx, vy, life, 0.2
+            ));
+        }
+    }
+
+    static spawnShieldDeflect(x, y, directionX, count = 15) {
+        for (let i = 0; i < count; i++) {
+            const angle = (directionX > 0 ? 0 : Math.PI) + (Math.random() * 1.2 - 0.6);
+            const speed = 3 + Math.random() * 6;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed - (1 + Math.random() * 2);
+            const size = 2 + Math.random() * 3;
+            const life = 0.3 + Math.random() * 0.5;
+
+            particles.push(new EngineParticle(
+                x, y,
+                { r: 50, g: 150, b: 255 },
+                { r: 10, g: 30, b: 80 },
+                size, vx, vy, life, 0.1
+            ));
+        }
+    }
+
+    static spawnCrucioPain(x, y, count = 4) {
+        for (let i = 0; i < count; i++) {
+            const vx = (Math.random() * 2 - 1) * 2;
+            const vy = -(1 + Math.random() * 3);
+            const size = 2 + Math.random() * 2;
+            const life = 0.4 + Math.random() * 0.4;
+
+            particles.push(new EngineParticle(
+                x, y,
+                { r: 180, g: 50, b: 240 },
+                { r: 30, g: 5, b: 50 },
+                size, vx, vy, life, -0.05
+            ));
+        }
+    }
+
+    static spawnStunSparkles(x, y, count = 10) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 4;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+            const size = 2 + Math.random() * 2;
+            const life = 0.6 + Math.random() * 0.6;
+
+            particles.push(new EngineParticle(
+                x, y,
+                { r: 255, g: 50, b: 150 },
+                { r: 50, g: 0, b: 50 },
+                size, vx, vy, life, 0
+            ));
+        }
+    }
+}
+
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - BÜYÜ FİZİĞİ & PROJEKTİL / EFEKT YÖNETİCİSİ (YENİ SÜRÜM)
+ * ============================================================================
+ * Bu modül; uçan mermi büyüleri, yer hedefli patlamaları (Confringo),
+ * ulti büyü çarpışmalarını (Priori Incantatem), alev menzillerini ve hasar
+ * sayıları gibi uçan yazıları yönetir.
+ * 
+ * Görsel Geliştirmeler:
+ * - Avada Kedavra için yeşil dallanan (branching) prösedürel yıldırımlar eklendi.
+ * - Expelliarmus mermisi için kırmızı kırıklı şimşek kuyrukları entegre edildi.
+ */
+
+import { Engine, Vector2, ParticleFactory, particles, EngineParticle } from './engine.js';
+
+/**
+ * Ekranda süzülerek yükselen arcade tarzı hasar ve durum yazıları sınıfı.
+ */
+class FloatingText {
+    constructor(text, x, y, color = '#ff3333') {
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.vy = -1.8; // Yukarı süzülme hızı
+        this.color = color;
+        this.life = 1.0; // Ekranda kalma süresi (1 saniye)
+    }
+
+    update(dt) {
+        this.y += this.vy * 60 * dt;
+        this.life -= dt;
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life); // Ömrü bittikçe soluklaşır
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 22px "Cinzel", Courier, monospace';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+/**
+ * Yer Hedefli ve 1.2 Saniye Gecikmeli Confringo Alan Etkisi Sınıfı
+ */
+export class ConfringoArea {
+    /**
+     * @param {number} targetX - Rakibin büyü yapıldığı andaki X koordinatı
+     * @param {object} game - GameOrchestrator referansı
+     * @param {object} owner - Büyüyü atan büyücü referansı
+     */
+    constructor(targetX, game, owner) {
+        this.x = targetX;
+        this.y = 600; // Zemin yüksekliği (FLOOR_Y)
+        this.game = game;
+        this.owner = owner;
+        this.maxLife = 1.2; // Rakibin kaçabilmesi için tam 1.2 saniye gecikme
+        this.life = this.maxLife;
+        this.exploded = false;
+    }
+
+    update(dt) {
+        this.life -= dt;
+        if (this.life <= 0 && !this.exploded) {
+            this.exploded = true;
+            this.explode();
+        }
+    }
+
+    /**
+     * Süre dolduğunda tetiklenen patlama ve hasar kontrolü.
+     */
+    explode() {
+        const target = (this.owner === this.game.p1) ? this.game.p2 : this.game.p1;
+        const dist = Math.abs(this.x - target.x);
+        
+        // Ekrana büyük sarsıntı ver ve patlama sesini çal
+        this.game.triggerScreenShake(12, 0.3);
+        this.game.audio.playExplosion();
+        
+        // Patlama animasyon ve parçacık efektlerini tetikle
+        this.game.spells.addEffect(new ExplosionEffect(this.x, this.y - 120, this.game));
+        ParticleFactory.spawnFireExplosion(this.x, this.y - 120, 25);
+
+        // Rakip patlama menzili (150px) içindeyse ve havaya zıplamadıysa hasar almalı
+        if (dist < 150) {
+            // Karakter havaya sıçradıysa (y < 460) hasardan tamamen kurtulur (Dodge)
+            if (target.y >= 460) {
+                target.takeDamage(24, true); // Confringo kalkanı deler, 24 hasar verir
+            } else {
+                // Başarılı kaçınma durumunda oyuncunun üzerinde yeşil "DODGED" yazısı belirir
+                this.game.spells.addFloatingText("DODGED", target.x, target.y - 40, '#33ff33');
+            }
+        }
+    }
+
+    /**
+     * Patlama öncesi yerde beliren ve giderek kızaran uyarı çemberini çizer.
+     */
+    draw(ctx) {
+        if (this.exploded) return;
+        
+        ctx.save();
+        const progress = 1 - (this.life / this.maxLife);
+        ctx.globalAlpha = 0.4 + progress * 0.5; // Süre yaklaştıkça daha parlak olur
+        
+        // Yerde parlayan kırmızı rün çemberi
+        ctx.strokeStyle = '#ff3333';
+        ctx.lineWidth = 3 + progress * 3;
+        ctx.shadowColor = '#ff3333';
+        ctx.shadowBlur = 10 + progress * 10;
+        
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 120 * progress, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Sabit dış çember sınırı
+        ctx.strokeStyle = 'rgba(255, 51, 51, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, 120, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+}
+
+/**
+ * Uçuş Yolculuğu Yapan Projektil Büyüler Sınıfı
+ */
+export class Projectile {
+    /**
+     * @param {number} x - Başlangıç X koordinatı
+     * @param {number} y - Başlangıç Y koordinatı
+     * @param {number} vx - Saniyede kat edilecek yatay hız ivmesi
+     * @param {object} owner - Büyüyü atan karakter referansı
+     * @param {string} type - 'sectumsempra' veya 'expelliarmus'
+     * @param {object} game - GameOrchestrator referansı
+     */
+    constructor(x, y, vx, owner, type, game) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = 0; 
+        this.owner = owner;
+        this.type = type;
+        this.game = game;
+
+        this.width = 75;
+        this.height = 40;
+        this.active = true;
+        this.distanceTravelled = 0;
+    }
+
+    /**
+     * Delta-time uyumlu pozisyon ve çarpışma güncelleyicisi.
+     */
+    update(dt, target) {
+        const stepX = this.vx * 60 * dt;
+        this.x += stepX;
+        this.distanceTravelled += Math.abs(stepX);
+
+        if (this.x < -100 || this.x > 1380) {
+            this.active = false;
+            return;
+        }
+
+        const targetH = target.isDucking ? 150 : 280;
+        const targetW = target.width;
+        const targetX = target.x - targetW / 2;
+        const targetY = target.y - targetH;
+
+        const projX = this.x - this.width / 2;
+        const projY = this.y - this.height / 2;
+
+        if (Engine.rectCollision(
+            projX, projY, this.width, this.height,
+            targetX, targetY, targetW, targetH
+        )) {
+            if (target.state !== 'dead') {
+                this.hit(target);
+            }
+        }
+    }
+
+    /**
+     * Büyü hedefe ulaştığında veya kalkana çarptığında tetiklenir.
+     */
+    hit(target) {
+        this.active = false;
+
+        if (this.type === 'sectumsempra') {
+            if (target.shieldActive) {
+                this.game.audio.playLightning();
+                ParticleFactory.spawnShieldDeflect(this.x, this.y, this.vx > 0 ? 1 : -1, 15);
+            } else {
+                this.game.audio.playExplosion();
+                target.takeDamage(24, false);
+                
+                this.game.spells.addEffect(new BloodOverlay(target, this.game));
+                ParticleFactory.spawnFireExplosion(this.x, this.y, 8); 
+                this.owner.ultCharge += 20;
+            }
+        }
+        else if (this.type === 'expelliarmus') {
+            if (target.shieldActive) {
+                this.game.audio.playLightning();
+                ParticleFactory.spawnShieldDeflect(this.x, this.y, this.vx > 0 ? 1 : -1, 20);
+            } else {
+                target.takeDamage(12, false);
+                target.stunTimer = 3.5; 
+                
+                this.game.audio.playLightning();
+                this.game.triggerScreenShake(6, 0.2);
+                
+                ParticleFactory.spawnStunSparkles(this.x, this.y - 50, 18);
+            }
+        }
+    }
+
+    /**
+     * Projektil büyü görsellerinin çizimi.
+     * Expelliarmus için arkasında kırmızı/pembe elektrik kırıkları çizer.
+     */
+    draw(ctx) {
+        let img = this.game.assets.images.sectumsempra;
+        let isFlipped = this.vx < 0;
+
+        if (this.type === 'confringo') {
+            img = this.game.assets.images[`confringo${Math.floor(Date.now() / 100) % 2 + 1}`];
+        } else if (this.type === 'sectumsempra') {
+            if (this.distanceTravelled < 420) {
+                ctx.save();
+                ctx.globalAlpha = 0.05; 
+                Engine.drawRotatedImage(ctx, this.game.assets.images.sectumsempra, this.x, this.y, this.width, this.height, 0, 0.05, isFlipped, 0.5, 0.5);
+                ctx.restore();
+                return;
+            }
+            img = this.game.assets.images.sectumsempra;
+        } else if (this.type === 'expelliarmus') {
+            img = this.game.assets.images.expelliarmus;
+
+            // --- EXPELLIARMUS ULTI MERMİSİ İÇİN KIRMIZI ŞİMŞEK KUYRUKLARI ---
+            ctx.save();
+            ctx.strokeStyle = '#ff0033'; // Parlak kızıl şimşek rengi
+            ctx.shadowColor = '#ff0055';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2 + Math.random() * 2;
+            
+            const trailDirection = this.vx > 0 ? -1 : 1;
+            // Arkaya doğru uzanan 3 kırıklı kızıl elektrik hattı oluşturur
+            for (let t = 0; t < 3; t++) {
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                let curX = this.x;
+                let curY = this.y;
+                const segments = 5;
+                for (let s = 1; s <= segments; s++) {
+                    curX += trailDirection * (25 + Math.random() * 15);
+                    curY += (Math.random() * 2 - 1) * 18;
+                    ctx.lineTo(curX, curY);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        Engine.drawRotatedImage(ctx, img, this.x, this.y, this.width, this.height, 0, 1.0, isFlipped, 0.5, 0.5);
+    }
+}
+
+/**
+ * Patlama Animasyonu Aftermath Sınıfı
+ */
+class ExplosionEffect {
+    constructor(x, y, game) {
+        this.x = x;
+        this.y = y;
+        this.game = game;
+        this.maxLife = 0.4; 
+        this.life = this.maxLife;
+        this.size = 200;
+    }
+
+    update(dt) {
+        this.life -= dt;
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
+        
+        const img = this.life > (this.maxLife / 2) ? this.game.assets.images.confringo3 : this.game.assets.images.confringo4;
+        
+        // GÜVENLİK KONTROLÜ: Görsel yoksa veya yüklenmediyse oyunu çökertme, yedek vektör çiz!
+        if (img && img.width > 0) {
+            ctx.drawImage(img, this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+        } else {
+            // Yedek patlama halkası (Görsel hatasında oyunun durmasını önler)
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size / 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 90, 0, 0.5)';
+            ctx.fill();
+            ctx.strokeStyle = '#ff3300';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        ctx.restore();
+    }
+}
+
+/**
+ * Sectumsempra Kan Sıçrama Efekti
+ */
+class BloodOverlay {
+    constructor(target, game) {
+        this.target = target;
+        this.game = game;
+        this.maxLife = 1.2; 
+        this.life = this.maxLife;
+    }
+
+    update(dt) {
+        this.life -= dt;
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
+        
+        const size = 260;
+        const img = this.game.assets.images.blood;
+        
+        // GÜVENLİK KONTROLÜ: Kan görseli bulunamadıysa çizmeyip es geçerek çökmeyi önler
+        if (img && img.width > 0) {
+            ctx.drawImage(img, this.target.x - size / 2, this.target.y - 200, size, size);
+        } else {
+            // Yedek kan damlası parçacıkları
+            ctx.fillStyle = 'rgba(180, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.arc(this.target.x, this.target.y - 120, 15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
+    }
+}
+
+/**
+ * Avada Kedavra Ölüm Işını Efekti
+ * Tamamen prösedürel yeşil dallanan yıldırımlarla çizilecek şekilde güncellendi.
+ */
+/**
+ * Avada Kedavra Yeşil Dallanan Yıldırım Efekti Sınıfı
+ */
+class AvadaKedavraBeam {
+    constructor(startX, startY, endX, endY, game) {
+        this.startX = startX;
+        this.startY = startY;
+        this.endX = endX;
+        this.endY = endY;
+        this.game = game;
+        this.maxLife = 0.35; 
+        this.life = this.maxLife;
+    }
+
+    update(dt) {
+        this.life -= dt;
+    }
+
+    /**
+     * Rekürsif (kendi kendini çağıran) yeşil yıldırım dallandırma fonksiyonu
+     */
+    drawLightningBranch(ctx, sx, sy, ex, ey, depth, maxDepth) {
+        if (depth > maxDepth) return;
+        
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        
+        const dist = Vector2.distance(sx, sy, ex, ey);
+        const segments = Math.max(5, Math.floor(dist / 30));
+        let lastX = sx;
+        let lastY = sy;
+        
+        ctx.strokeStyle = '#00ff33'; // Neon yeşili elektrik rengi
+        ctx.lineWidth = Math.max(0.5, (4 - depth) * (this.life / this.maxLife)); // Derinliğe göre incelir
+        ctx.shadowColor = '#00ff33';
+        ctx.shadowBlur = 15;
+
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            let px = sx + (ex - sx) * t;
+            let py = sy + (ey - sy) * t;
+            
+            if (i < segments) {
+                // Şimşeğin doğrultusuna dik açıda kırıklı pürüzler (jitter) ekle
+                const angle = Vector2.angleBetween(sx, sy, ex, ey) + Math.PI / 2;
+                const jitter = (Math.random() * 2 - 1) * (18 / (depth + 1));
+                px += Math.cos(angle) * jitter;
+                py += Math.sin(angle) * jitter;
+            }
+            
+            ctx.lineTo(px, py);
+            
+            // Rastgele yan yıldırımlar (kılcal şimşekler) fırlatır
+            if (Math.random() < 0.16 && depth < maxDepth && i < segments) {
+                const branchAngle = Vector2.angleBetween(lastX, lastY, px, py) + (Math.random() * 0.9 - 0.45);
+                const branchLength = dist * (1 - t) * 0.35;
+                const bx = px + Math.cos(branchAngle) * branchLength;
+                const by = py + Math.sin(branchAngle) * branchLength;
+                this.drawLightningBranch(ctx, px, py, bx, by, depth + 1, maxDepth);
+            }
+            
+            lastX = px;
+            lastY = py;
+        }
+        ctx.stroke();
+    }
+
+    draw(ctx) {
+        if (this.life <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = Engine.clamp(this.life / this.maxLife, 0, 1);
+        
+        // 3 ana koldan dallanan neon yeşili yıldırımı çizdirir
+        this.drawLightningBranch(ctx, this.startX, this.startY, this.endX, this.endY, 0, 3);
+        
+        ctx.restore();
+    }
+}
+/**
+ * Tüm Büyüleri, Alan Efektlerini ve Yazıları Yöneten Sınıf (Orchestrator Module)
+ */
+export class SpellManager {
+    constructor(game) {
+        this.game = game;
+        this.projectiles = [];
+        this.effects = [];
+        this.floatingTexts = [];
+    }
+
+    clearAll() {
+        this.projectiles = [];
+        this.effects = [];
+        this.floatingTexts = [];
+    }
+
+    addProjectile(proj) {
+        this.projectiles.push(proj);
+    }
+
+    addEffect(eff) {
+        this.effects.push(eff);
+    }
+
+    addFloatingText(text, x, y, color) {
+        this.floatingTexts.push(new FloatingText(text, x, y, color));
+    }
+
+    /**
+     * Voldemort Confringo'yu yer hedefli tetiklediğinde çağrılır.
+     */
+    triggerConfringo(targetX, caster) {
+        this.addEffect(new ConfringoArea(targetX, this.game, caster));
+    }
+
+    /**
+     * Madde 6: Sadece iki nihai büyü (Avada Kedavra vs Expelliarmus) çarpışırsa tetiklenecek Priori Incantatem köprüsü.
+     */
+
+    /**
+     * Avada Kedavra yeşil yıldırımları ateşlendiğinde çağrılır.
+     * Havada süzülen aktif bir Expelliarmus mermisi varsa yıldırım mermiyi tam ortada yakalar.
+     */
+    triggerAvadaBeam(startX, startY, endX, endY) {
+        // Havada süzülen aktif bir Expelliarmus ulti mermisi var mı tara
+        const expellUlt = this.projectiles.find(p => p.type === 'expelliarmus' && p.active);
+
+        if (expellUlt) {
+            // İki ulti tam orta noktada Priori Incantatem ile çarpışır!
+            const clashX = (startX + expellUlt.x) / 2;
+            const clashY = startY; // İki büyü de omuz hizasında (y - 210)
+
+            // Morgan'ın nihai büyüsünü devre dışı bırak
+            expellUlt.active = false;
+
+            // Avada Kedavra yeşil ışınını çarpışma noktasına kadar kısıtlayarak çiz
+            this.addEffect(new AvadaKedavraBeam(startX, startY, clashX, clashY, this.game));
+
+            // Dev kozmik sarsıntı ve patlama sesi tetiklenir
+            this.game.triggerScreenShake(15, 0.45);
+            this.game.audio.playExplosion();
+
+            // Yeşil ve kırmızı neon patlama parçacıklarını çarpışma noktasından etrafa saç
+            for (let i = 0; i < 40; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 4 + Math.random() * 8;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                const size = 3 + Math.random() * 5;
+                const life = 0.6 + Math.random() * 0.8;
+                const isGreen = Math.random() < 0.5;
+
+                particles.push(new EngineParticle(
+                    clashX, clashY,
+                    isGreen ? { r: 0, g: 255, b: 50 } : { r: 255, g: 0, b: 180 },
+                    { r: 20, g: 20, b: 20 },
+                    size, vx, vy, life, 0.1
+                ));
+            }
+            
+            this.addFloatingText("CLASH!", clashX, clashY - 60, '#ffcc00');
+        } else {
+            // Havada ulti mermisi yoksa normal Avada Kedavra ışını hedefe kadar uzanır
+            this.addEffect(new AvadaKedavraBeam(startX, startY, endX, endY, this.game));
+        }
+    }
+
+    update(dt, p1, p2) {
+        // 1. Mermileri güncelle
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const proj = this.projectiles[i];
+            const target = (proj.owner === p1) ? p2 : p1;
+            proj.update(dt, target);
+
+            if (!proj.active) {
+                this.projectiles.splice(i, 1);
+            }
+        }
+
+        // 2. Alan etkilerini ve Confringo gecikmelerini güncelle
+        for (let i = this.effects.length - 1; i >= 0; i--) {
+            const eff = this.effects[i];
+            eff.update(dt);
+
+            if (eff.life <= 0) {
+                this.effects.splice(i, 1);
+            }
+        }
+
+        // 3. UÇAN HASAR YAZILARINI GÜNCELLE
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.update(dt);
+            if (ft.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+
+        // 4. SÜREKLİ BÜYÜ AKTİF ETKİLERİ VE MENZİL KONTROLLERİ (Mana Drain & Can Tüketimi)
+        [p1, p2].forEach(caster => {
+            if (!caster.channelingSpell) return;
+            const target = (caster === p1) ? p2 : p1;
+
+            let drainRate = caster.type === 'voldemort' ? 35 : 30; 
+            caster.mana -= drainRate * dt;
+
+            if (caster.mana <= 0 || caster.state === 'pain' || caster.state === 'stun' || caster.state === 'dead') {
+                caster.mana = Math.max(0, caster.mana);
+                caster.stopChannel();
+                return;
+            }
+
+            const dist = Math.abs(caster.x - target.x);
+            
+            // Voldemort Crucio sürekli kilitleme etkisi (Menzil: 780px)
+            if (caster.type === 'voldemort' && caster.channelingSpell === 'crucio') {
+                if (dist < 780) {
+                    if (target.shieldActive) {
+                        target.mana -= 18 * dt; 
+                    } else {
+                        target.takeDamage(16 * dt, false); 
+                        caster.ultCharge += 15 * dt;      
+                        target.vx *= 0.5; // Crucio altındaki kurban yavaşlar
+
+                        // Morgan hasar alırken acı çığlığı (.mp3) tetiklenir
+                        if (target.type === 'morgan' && Math.random() < 1.5 * dt) {
+                            this.game.audio.playMorganScreamSound();
+                        }
+                    }
+                }
+            } 
+            // Morgan Incendio alev fırtınası (Menzil: Maksimum 500px ile sınırlandırıldı!)
+            else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
+                if (dist < 500) { // Limitlendi
+                    if (target.shieldActive) {
+                        target.mana -= 14 * dt; 
+                    } else {
+                        target.takeDamage(12 * dt, false); 
+                        caster.ultCharge += 12 * dt;
+                        if (Math.random() < 4 * dt) { 
+                            target.addBurnStack();          
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    draw(ctx) {
+        this.effects.forEach(eff => eff.draw(ctx));
+        this.projectiles.forEach(proj => proj.draw(ctx));
+        this.drawContinuousChannels(ctx);
+        this.floatingTexts.forEach(ft => ft.draw(ctx));
+    }
+
+    drawContinuousChannels(ctx) {
+        const p1 = this.game.p1;
+        const p2 = this.game.p2;
+
+        [p1, p2].forEach(caster => {
+            if (!caster.channelingSpell) return;
+            const opponent = (caster === p1) ? p2 : p1;
+
+            const startX = caster.x + (caster.facingRight ? 50 : -50);
+            const startY = caster.y - 210; 
+
+            const targetX = opponent.x;
+            const targetY = opponent.y - 210; 
+
+            if (caster.type === 'voldemort' && caster.channelingSpell === 'crucio') {
+                const swirlSize = 130;
+                ctx.save();
+                ctx.translate(startX, startY);
+                ctx.rotate((Date.now() / 150) % (Math.PI * 2));
+                ctx.globalAlpha = 0.9;
+                const swirlImg = this.game.assets.images.crucio;
+if (swirlImg && swirlImg.width > 0) {
+    ctx.drawImage(swirlImg, -swirlSize / 2, -swirlSize / 2, swirlSize, swirlSize);
+}
+                ctx.restore();
+
+                if (!opponent.shieldActive) {
+                    ctx.save();
+                    ctx.strokeStyle = '#bf55ec';
+                    ctx.lineWidth = 4 + Math.random() * 4; 
+                    ctx.shadowColor = '#bf55ec';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+
+                    const segments = 10;
+                    for (let i = 1; i <= segments; i++) {
+                        let px = startX + (targetX - startX) * (i / segments);
+                        let py = startY + (targetY - startY) * (i / segments);
+                        
+                        if (i < segments) {
+                            px += (Math.random() * 2 - 1) * 15;
+                            py += (Math.random() * 2 - 1) * 15;
+                        }
+                        ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+
+                    ParticleFactory.spawnCrucioPain(targetX, targetY, 2);
+                }
+            } 
+            // Morgan Incendio Alevinin görsel çizim menzili maksimum 500px ile sınırlandırıldı
+            else if (caster.type === 'morgan' && caster.channelingSpell === 'incendio') {
+                const flameImg = this.game.assets.images[`incendio${Math.floor(Date.now() / 80) % 3 + 1}`];
+                
+                ctx.save();
+                let finalTargetX = targetX;
+                let finalTargetY = targetY;
+
+                // Maksimum 500px sınırını omuz koordinatından itibaren kısıtla
+                const distance = Vector2.distance(startX, startY, targetX, targetY);
+                if (distance > 500) {
+                    const angle = Vector2.angleBetween(startX, startY, targetX, targetY);
+                    finalTargetX = startX + Math.cos(angle) * 500;
+                    finalTargetY = startY + Math.sin(angle) * 500;
+                }
+
+                if (opponent.shieldActive) {
+                    const angle = Vector2.angleBetween(startX, startY, finalTargetX, finalTargetY);
+                    const shieldRadius = 150;
+                    // Eğer kalkan menzil sınırının dışındaysa alev kalkan yüzeyinde kesilmez, sınırında biter
+                    if (distance <= 500) {
+                        finalTargetX = targetX - Math.cos(angle) * shieldRadius;
+                        finalTargetY = targetY - Math.sin(angle) * shieldRadius;
+                    }
+                    
+                    if (Math.random() < 0.3) {
+                        ParticleFactory.spawnShieldDeflect(finalTargetX, finalTargetY, caster.facingRight ? 1 : -1, 3);
+                    }
+                }
+
+                const angle = Vector2.angleBetween(startX, startY, finalTargetX, finalTargetY);
+                const actualFlameDistance = Vector2.distance(startX, startY, finalTargetX, finalTargetY);
+
+                ctx.translate(startX, startY);
+                ctx.rotate(angle);
+               if (flameImg && flameImg.width > 0) {
+    ctx.drawImage(flameImg, 0, -55, actualFlameDistance, 110);
+}
+                ctx.restore();
+            }
+        });
+    }
+}
+
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - KARAKTER SINIFI & FİZİK / ANIMASYON YÖNETİCİSİ (YENİ SÜRÜM)
+ * ============================================================================
+ * Bu dosya, düellodaki büyücülerin fizik simülasyonlarını, can/mana/ulti durumlarını,
+ * hasar alma, zehir yükü biriktirme ve gelişmiş animasyon kilitlerini yönetir.
+ * 
+ * Görsel ve Fiziksel Geliştirmeler:
+ * - Zıplama ivmesi -19 hıza çıkarıldı ve süzülme fiziği yumuşatıldı.
+ * - Saldırı animasyonlarının sürekli loop etmesi engellendi, son karede kilitleniyor.
+ * - Voldemort'un Protego kalkanının yön (mirror/flipX) ve el hizalama offseti düzeltildi.
+ * - Sectumsempra atılırken karakterin büyü yapma duruşunda kalması sağlandı.
+ * - Can değerleri 250 seviyesine dengelendi ve pasif ulti dolum sistemi kuruldu.
+ */
+
+import { Engine, ParticleFactory } from './engine.js';
+
+/**
+ * Karakterlerin kafalarının üzerinde beliren konuşma/büyü kutusu sınıfı.
+ * Büyücü bir büyü fırlattığında büyü sözünü söylemesi için ekranda çizilir.
+ */
+export class SpeechBubble {
+    /**
+     * @param {string} text - Balonun içinde yazacak olan büyü sözü
+     * @param {number} x - Karakterin X koordinatı
+     * @param {number} y - Karakterin kafa üstü koordinatı
+     */
+    constructor(text, x, y) {
+        this.text = text;
+        this.x = x;
+        this.y = y;
+        this.maxLife = 1.0; // Büyü sözünün ekranda kalacağı süre (1 saniye)
+        this.life = this.maxLife;
+    }
+
+    /**
+     * Balonun konumunu ve kalan süresini günceller.
+     * @param {number} dt - Geçen delta süresi (saniye)
+     * @param {number} x - Karakterin anlık X koordinatı
+     * @param {number} y - Karakterin anlık kafa üstü koordinatı
+     */
+    update(dt, x, y) {
+        this.x = x;
+        this.y = y;
+        this.life -= dt;
+    }
+
+    /**
+     * Konuşma balonunu şık bir koyu cam kartı ve altın çerçeveyle çizer.
+     * @param {CanvasRenderingContext2D} ctx - Çizim yapılacak tuval referansı
+     */
+    draw(ctx) {
+        if (this.life <= 0) return;
+
+        ctx.save();
+        ctx.font = 'bold 16px "Cinzel", Arial, sans-serif';
+        const metrics = ctx.measureText(this.text);
+        const paddingW = 18;
+        const w = metrics.width + paddingW;
+        const h = 28;
+        
+        // Balonun yerleşeceği kutu sınırları
+        const rx = this.x - w / 2;
+        const ry = this.y - 45 - h;
+
+        // Yumuşak geçişli opaklık (Fade-out efekti)
+        ctx.globalAlpha = Engine.clamp(this.life / 0.2, 0, 1);
+
+        // Arka Plan Kartı
+        ctx.fillStyle = 'rgba(12, 15, 18, 0.92)';
+        ctx.strokeStyle = '#d4af37'; // Tematik altın rengi çerçeve
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(rx, ry, w, h, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Aşağıyı (Asa ucunu) gösteren küçük işaretçi üçgeni
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath();
+        ctx.moveTo(this.x - 6, ry + h);
+        ctx.lineTo(this.x + 6, ry + h);
+        ctx.lineTo(this.x, ry + h + 6);
+        ctx.fill();
+
+        // Metin Çizimi
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.text, this.x, ry + h / 2 + 1);
+        
+        ctx.restore();
+    }
+}
+
+/**
+ * Ana Karakter Yönetim Sınıfı (Büyücüler)
+ */
+export class Character {
+    /**
+     * @param {string} type - 'voldemort' veya 'morgan'
+     * @param {boolean} isPlayer - Oyuncu mu yoksa yapay zeka mı?
+     * @param {number} startX - Savaş alanındaki başlangıç X koordinatı
+     * @param {object} game - GameOrchestrator referansı (Ana motor erişimi)
+     * @param {object} config - Evrensel konfigürasyon değişkenleri
+     */
+    constructor(type, isPlayer, startX, game, config) {
+        this.type = type;
+        this.isPlayer = isPlayer;
+        this.game = game;
+        this.config = config;
+
+        // Pozisyon ve Fizik Değişkenleri
+        this.x = startX;
+        this.y = this.config.FLOOR_Y;
+        this.vx = 0;
+        this.vy = 0;
+        this.height = 280; // Sabit boy kilidi (Fighting Oyunu Standardı)
+
+        // Temel İstatistikler (Dengeleme ve daha uzun düellolar için can havuzu artırıldı)
+        this.maxHp = 250;
+        this.hp = this.maxHp;
+        this.mana = 100;
+        this.ultCharge = 0;
+
+        // Durum Değişkenleri (FSM)
+        this.facingRight = isPlayer;
+        this.isGrounded = true;
+        this.isDucking = false;
+        this.state = 'idle'; // 'idle', 'walk', 'cast', 'pain', 'stun', 'dead'
+
+        // Animasyon Zamanlayıcıları ve Süreç Sayaçları
+        this.animTimer = 0;
+        this.walkCycleIndex = 0;
+        this.painTimer = 0;
+        this.stunTimer = 0;
+
+        // Büyü sözü söyleme ve animasyon duraklatma sayacı
+        this.castDelayTimer = 0; 
+
+        // Saldırı animasyonunun loop etmeyip son karede donmasını sağlayan süreölçer
+        this.castTimer = 0;
+
+        // Büyü ve Kalkan Bayrakları
+        this.shieldActive = false;
+        this.channelingSpell = null; // 'crucio' veya 'incendio'
+
+        // Üzerindeki DoT (Zamanla Alınan Hasar) Etkileri
+        this.burnStacks = 0;
+        this.burnTimer = 0;
+        this.burnTickAccumulator = 0; // Saniye bazlı hasar hesaplayıcı
+
+        // Aktif Konuşma Balonu
+        this.bubble = null;
+    }
+
+    /**
+     * Karakterin kafasının üzerinde büyü ismi yazdırır.
+     * @param {string} text - Söylenecek büyü sözü
+     */
+    say(text) {
+        this.bubble = new SpeechBubble(text, this.x, this.y - this.height);
+    }
+
+    /**
+     * Karakter hasar aldığında tetiklenen merkezi metod.
+     * @param {number} amount - Alınacak hasar miktarı
+     * @param {boolean} bypassShield - Kalkanı (Protego) yok sayan patlamalı hasar mı?
+     */
+    takeDamage(amount, bypassShield = false) {
+        if (this.state === 'dead') return;
+
+        // Kalkan (Protego) aktifse ve gelen hasar kalkanı delmiyorsa hasarı engelle
+        if (this.shieldActive && !bypassShield) {
+            const dirX = this.facingRight ? 1 : -1;
+            // Engelleyici kıvılcımları asanın yüksekliğine (y - 210) hizala
+            ParticleFactory.spawnShieldDeflect(this.x + dirX * 60, this.y - 210, dirX, 12);
+            
+            // Kalkan engellemesinde mavi renkli "PROTEGO" uçan yazısı fırlatır
+            if (this.game && this.game.spells) {
+                this.game.spells.addFloatingText("PROTEGO", this.x, this.y - 230, '#3399ff');
+            }
+            return;
+        }
+
+        // Hasarı can değerinden düş
+        this.hp = Math.max(0, this.hp - amount);
+
+        // Alınan hasarı ekranda kırmızı renkle uçan hasar sayısı olarak fırlatır
+        if (amount >= 1 && this.game && this.game.spells) {
+            this.game.spells.addFloatingText("-" + Math.round(amount), this.x, this.y - 180, '#ff3333');
+        }
+
+        // Hasar yenildiğinde kanalize edilen büyüleri kes
+        if (this.channelingSpell) {
+            this.stopChannel();
+        }
+
+        if (this.hp <= 0) {
+            // Ölüm Durumu
+            this.state = 'dead';
+            this.vx = 0;
+            this.vy = 0;
+            this.stopChannel();
+        } else {
+            // Kısa Süreli Sarsılma (Flinch) Durumu
+            this.state = 'pain';
+            this.painTimer = 0.3; // 0.3 saniye boyunca kilitlenir
+            this.vx = 0;
+            this.castDelayTimer = 0; // Hasar alındığında büyü hazırlığı iptal olur
+            
+            // Hasar tipine göre darbe kıvılcımları saç
+            ParticleFactory.spawnFireExplosion(this.x, this.y - 120, 5);
+        }
+    }
+
+    /**
+     * Incendio büyüsünden yanma yükü alır. Hasar saniye bazlı birikerek katlanır.
+     */
+    addBurnStack() {
+        if (this.burnStacks < 5) {
+            this.burnStacks++;
+        }
+        this.burnTimer = 4.0; // Her yanma yükü 4 saniye aktif kalır
+    }
+
+    /**
+     * Devam eden sürekli büyüleri (Crucio / Incendio) durdurur.
+     */
+    stopChannel() {
+        if (this.channelingSpell === 'incendio') {
+            this.game.audio.stopFlame();
+        }
+        this.channelingSpell = null;
+    }
+
+    /**
+     * Delta-time entegrasyonlu fiziksel güncelleme döngüsü.
+     * @param {number} dt - İki kare arasında geçen süre (saniye)
+     * @param {object} opponent - Karşıdaki rakip karakter referansı
+     */
+    update(dt, opponent) {
+        this.ultCharge = Math.min(100, this.ultCharge);
+
+        // Her zaman rakibe doğru yönel (Dövüş oyunu standardı)
+        this.facingRight = (opponent.x > this.x);
+
+        // Saniyede pasif ulti birikimi eklendi
+        if (this.state !== 'dead') {
+            this.ultCharge = Math.min(100, this.ultCharge + 2.0 * dt); // Saniyede pasif +2.0 ulti şarjı
+        }
+
+        // Büyü sözü söyleme gecikmesi sayacını işlet
+        if (this.castDelayTimer > 0) {
+            this.castDelayTimer -= dt;
+            this.vx = 0; // Büyü hazırlığı sırasında karakterin yürümesini engelle
+        }
+
+        // 1. Sersemletilme (STUN - Expelliarmus) Durum Kontrolü
+        if (this.stunTimer > 0) {
+            this.stunTimer -= dt;
+            this.state = 'stun';
+            this.vx = 0;
+            this.shieldActive = false;
+            this.castDelayTimer = 0;
+            this.stopChannel();
+
+            // Kafanın üzerinde dönen sersemleme kıvılcımları saç
+            if (Math.random() < 0.25) {
+                ParticleFactory.spawnStunSparkles(this.x + (Math.random() * 40 - 20), this.y - this.height - 10, 2);
+            }
+        }
+
+        // 2. Darbe Alma (PAIN) Geri Kazanım Kontrolü
+        if (this.state === 'pain') {
+            this.painTimer -= dt;
+            this.vx = 0;
+            if (this.painTimer <= 0) {
+                this.state = 'idle';
+            }
+        }
+
+        // 3. Yanma (DoT) Hasar Hesaplamaları (Morgan Incendio etkisi)
+        if (this.burnStacks > 0) {
+            this.burnTimer -= dt;
+            this.burnTickAccumulator += dt;
+
+            // Her 0.5 saniyede bir yanma hasarı ver
+            if (this.burnTickAccumulator >= 0.5) {
+                this.burnTickAccumulator -= 0.5;
+                const burnDamage = this.burnStacks * 0.75;
+                this.hp = Math.max(0, this.hp - burnDamage);
+                
+                // Karakterin üzerinden alev kıvılcımları fırlat
+                ParticleFactory.spawnFireExplosion(this.x + (Math.random() * 60 - 30), this.y - 120, 3);
+
+                if (this.hp <= 0) {
+                    this.state = 'dead';
+                    this.vx = 0;
+                    this.stopChannel();
+                }
+            }
+
+            if (this.burnTimer <= 0) {
+                this.burnStacks = 0;
+                this.burnTickAccumulator = 0;
+            }
+        }
+
+        // 4. Enerji (Mana) Yenilenmesi ve Protego Tüketim Hesabı
+        if (this.state !== 'dead') {
+            let manaDelta = 9.0 * dt; // Saniyede +9 mana yenilenme tabanı
+            
+            if (this.shieldActive) {
+                manaDelta = -36.0 * dt; // Protego kalkanını açık tutmak saniyede -36 mana harcar!
+            }
+            
+            this.mana = Math.min(100, Math.max(0, this.mana + manaDelta));
+
+            // Manası sıfırlanan büyücünün kalkanı anında kırılır
+            if (this.mana <= 0 && this.shieldActive) {
+                this.shieldActive = false;
+                this.game.triggerScreenShake(5, 0.15); // Kalkan kırılma sarsıntısı
+                ParticleFactory.spawnShieldDeflect(this.x, this.y - 210, this.facingRight ? 1 : -1, 8);
+            }
+        }
+
+        // 5. Kalkan Koruması Durum Önceliği
+        if (this.shieldActive) {
+            this.vx = 0;
+            this.state = 'cast';
+        }
+
+        // 6. Fiziksel Yerçekimi ve Zıplama İvmelenmesi
+        // Zıplayarak mermilerden kaçabilmek için dikey fizik süzülme çarpanı yumuşatıldı
+        if (!this.isGrounded) {
+            this.vy += this.config.GRAVITY * 55 * dt; // Süzülme hissi için yerçekimi katsayısı ayarlandı
+            this.y += this.vy * 60 * dt;
+
+            if (this.y >= this.config.FLOOR_Y) {
+                this.y = this.config.FLOOR_Y;
+                this.vy = 0;
+                this.isGrounded = true;
+            }
+        }
+
+        // Yatay hareket ivmesini uygula
+        this.x += this.vx * 60 * dt;
+
+        // Ekran Sınırlarının Korunması (Büyücülerin dövüş arenası sınırları dışına kaçamaması)
+        this.x = Math.max(80, Math.min(this.config.VIRTUAL_WIDTH - 80, this.x));
+
+        // 7. Durum Öncelik Hiyerarşisi (State Machine Resolver)
+        // castDelayTimer sayacı aktifken karakterin cast durumunda kalması sağlandı (Sectumsempra düzeltmesi)
+        if (this.state !== 'pain' && this.state !== 'dead' && this.state !== 'stun') {
+            if (this.castDelayTimer > 0 || this.shieldActive || this.channelingSpell) {
+                this.state = 'cast';
+            } else if (Math.abs(this.vx) > 0.1) {
+                this.state = 'walk';
+            } else {
+                this.state = 'idle';
+            }
+        }
+
+        // Saldırı animasyonunun son karede kilitlenmesi için castTimer takibi
+        if (this.state === 'cast') {
+            this.castTimer += dt;
+        } else {
+            this.castTimer = 0;
+        }
+
+        // 8. Konuşma Balonunun Güncellenmesi
+        if (this.bubble) {
+            this.bubble.update(dt, this.x, this.y - this.height);
+            if (this.bubble.life <= 0) {
+                this.bubble = null;
+            }
+        }
+
+        // 9. Yürüme Karelerinin Hız Çarpan Takibi
+        if (this.state === 'walk') {
+            this.animTimer += dt;
+            // Saniyede 12 kare yürüme canlandırma hızı
+            if (this.animTimer >= 0.08) {
+                this.animTimer -= 0.08;
+                this.walkCycleIndex = (this.walkCycleIndex + 1) % 7;
+            }
+        }
+    }
+
+    /**
+     * Büyücü karakteri ve kalkanını ekrana çizer.
+     * @param {CanvasRenderingContext2D} ctx - Çizim yapılacak tuval referansı
+     */
+    draw(ctx) {
+        ctx.save();
+        
+        let mustFlip = !this.facingRight;
+        
+        // Akıllı Yedekleme Sistemi (Görsellerin yüklenememesi ihtimaline karşı varsayılan ayakta durma görseli)
+        const standImg = this.type === 'voldemort' ? this.game.assets.images.voldemortstand : this.game.assets.images.morganstand;
+        let img = standImg;
+
+        // Durum kalkanına göre doğru sprite karesini seç
+        if (this.type === 'voldemort') {
+            if (this.state === 'dead') {
+                img = this.game.assets.images.voldemortwalk1 || standImg; // Yerde yatış tabanı
+            } else if (this.state === 'pain') {
+                img = this.game.assets.images.voldemortwalk4 || standImg; // Darbe alma karesi
+            } else if (this.state === 'cast') {
+                // Saldırı animasyonunun loop etmeyip son karede (Frame 3) donma mantığı
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.12)); // 120ms'de bir kare atlar, maksimum 2. indekste (Frame 3) donar
+                img = this.game.assets.images[`voldemortattack${attackIndex + 1}`] || standImg;
+            } else if (this.state === 'walk') {
+                img = this.game.assets.images[`voldemortwalk${this.walkCycleIndex + 1}`] || standImg;
+            }
+        } else { // Morgan Le Fay
+            if (this.state === 'dead') {
+                img = this.game.assets.images.morganwalk1 || standImg;
+            } else if (this.state === 'pain') {
+                img = this.game.assets.images.morganwalk4 || standImg;
+            } else if (this.state === 'cast') {
+                // Morgan saldırı animasyonu son karesinde sabitlenir
+                const attackIndex = Math.min(2, Math.floor(this.castTimer / 0.12));
+                img = this.game.assets.images[`morganattack${attackIndex + 1}`] || standImg;
+            } else if (this.state === 'walk') {
+                img = this.game.assets.images[`morganwalk${this.walkCycleIndex + 1}`] || standImg;
+            }
+        }
+
+        // Son koruma önlemi (Görsel tamamen bulunamadıysa çizimi güvenle durdur)
+        if (!img) {
+            ctx.restore();
+            return;
+        }
+
+        // Görsel genişliğini, asimetrik dikey bozulmayı önleyecek şekilde yüksekliğe oranla koru
+        const aspect = img.width / img.height;
+        const drawH = this.height;
+        const drawW = drawH * aspect;
+
+        // Darbe yendiğinde karakterin acı içinde sallanma sarsıntısı (Vibration Offset)
+        let painShakeX = 0;
+        if (this.state === 'pain') {
+            painShakeX = (Math.random() * 2 - 1) * 8; // Milisaniyelik acı titremesi
+        }
+
+        let drawX = this.x + painShakeX;
+        let drawY = this.y;
+
+        // Karakter öldüyse gövdesini 90 derece yana devir
+        if (this.state === 'dead') {
+            ctx.translate(this.x, this.y);
+            ctx.rotate(mustFlip ? -Math.PI / 2 : Math.PI / 2);
+            // Ölen karakteri yerde düzgün hizalamak için offsetleri kaydır
+            ctx.drawImage(img, -drawW / 2, -drawH, drawW, drawH);
+            ctx.restore();
+            return;
+        }
+
+        // Yatay çevirme ve hizalama mantığı
+        if (mustFlip) {
+            Engine.drawRotatedImage(ctx, img, drawX, drawY, drawW, drawH, 0, 1, true, 0.5, 1.0);
+        } else {
+            Engine.drawRotatedImage(ctx, img, drawX, drawY, drawW, drawH, 0, 1, false, 0.5, 1.0);
+        }
+
+        ctx.restore();
+
+        // 10. Protego Kalkanı Çizimi (Gövde merkezli titreşimli kalkan)
+        if (this.shieldActive) {
+            ctx.save();
+            const pulse = 1 + Math.sin(Date.now() / 100) * 0.05; // Titreşim dalgası
+            const pSize = 340 * pulse;
+            
+            // Voldemort'un ve Morgan'ın Protego kalkanının yön (mirror/flipX) ve el hizalaması düzeltildi
+            const shieldOffset = this.facingRight ? 60 : -60;
+            const px = this.x + shieldOffset;
+            const py = this.y - 145; // Göğüs ve asa hizası merkezi
+
+            ctx.globalAlpha = 0.8;
+            
+            // Baktığı yöne göre kalkan görselini yatayda ters çevir (flipX)
+            const flipShield = !this.facingRight;
+            Engine.drawRotatedImage(ctx, this.game.assets.images.protego, px, py, pSize, pSize, 0, 0.8, flipShield, 0.5, 0.5);
+            ctx.restore();
+        }
+
+        // Konuşma Balonunu Çiz
+        if (this.bubble) {
+            this.bubble.draw(ctx);
+        }
+    }
+}
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - HİBRİT SES SENTEZLEME VE MP3 ÇALMA MOTORU (3. AŞAMA)
+ * ============================================================================
+ * Bu sınıf; harici MP3 dosyalarını yükleyip çalabilen ana ses motorudur. Tarayıcıda
+ * CORS engeli çıkması veya dosyaların eksik olması durumuna karşı eski prösedürel
+ * Web Audio API sentezleyicilerini sessiz yedek (fallback) olarak çalıştırır.
+ * 
+ * 3. Aşama Güncellemeleri:
+ * - HTML5 Audio tabanlı gerçek zamanlı MP3 yükleme ve çalma yapısı kuruldu.
+ * - maintheme.mp3 için menüde başlayan döngüsel arka plan müziği desteği eklendi.
+ * - Morgan'ın Incendio büyüsü için sürekli döngüsel kanalizasyon sesi entegre edildi.
+ * - Tüm büyüler, kalkanlar ve Morgan'ın acı çığlığı MP3 dosyalarıyla eşleştirildi.
+ */
+
+export class AudioController {
+    constructor() {
+        // Tarayıcının ana ses işlem birimi (AudioContext) yedek sentezleyici için
+        this.ctx = null;
+
+        // Incendio alev akışı için procedural sentezleyici düğümleri
+        this.fireSource = null;
+        this.fireOsc = null;
+        this.fireGain = null;
+
+        // MP3 Dosya Yolları Sözlüğü
+        this.soundPaths = {
+            mainTheme: 'maintheme.mp3',
+            voldemortProtego: 'voldemortprotego.mp3',
+            morganIncendio: 'morganincendio.mp3',
+            morganScream: 'morganscream.mp3',
+            morganExpelliarmus: 'morganexpelliarmus.mp3',
+            morganProtego: 'morganprotego.mp3',
+            morganSectumsempra: 'morgansectumsempra.mp3',
+            avadaKedavra: 'avadakedavra.mp3',
+            confringo: 'confringo.mp3',
+            crucio: 'crucio.mp3'
+        };
+
+        // Sürekli döngü çalacak olan seslerin nesne referansları
+        this.themeAudio = null;
+        this.incendioAudio = null;
+    }
+
+    /**
+     * Tarayıcı güvenlik politikası gereği, kullanıcının ekrana ilk dokunuşunda
+     * ses motorunu uyandırır ve aktifleştirir.
+     */
+    init() {
+        if (!this.ctx) {
+            // Standart ve Webkit tarayıcı uyumluluğu
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // Eğer ses birimi uyku modundaysa (suspended) uyandır
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    /**
+     * Güvenli MP3 Çalma Yardımcı Fonksiyonu
+     * Eğer dosya bulunamazsa veya CORS engeli çıkarsa otomatik olarak sentezleyici fallback çalıştırır.
+     * @param {string} path - Çalınacak .mp3 dosyasının yolu
+     * @param {function} fallbackCallback - MP3 çalmazsa çalıştırılacak sentezleyici yedek fonksiyonu
+     */
+    playSound(path, fallbackCallback) {
+        this.init();
+        const audio = new Audio(path);
+        audio.volume = 0.85; // Büyü sesleri yüksekliği
+        audio.play().catch(err => {
+            console.warn(`[SES MOTORU] ${path} dosyası çalınamadı. Sentezleyici yedek devreye giriyor. Hata:`, err);
+            if (fallbackCallback) {
+                fallbackCallback();
+            }
+        });
+    }
+
+    /**
+     * Madde 10: Ana menüde ve oyun içinde kesintisiz çalan tema müziğini başlatır.
+     */
+    playTheme() {
+        this.init();
+        if (!this.themeAudio) {
+            this.themeAudio = new Audio(this.soundPaths.mainTheme);
+            this.themeAudio.loop = true;
+            this.themeAudio.volume = 0.30; // Arka plan müziği için yumuşak %30 ses düzeyi
+        }
+        
+        this.themeAudio.play().catch(err => {
+            console.warn("[SES MOTORU] Tema müziği çalınamadı (Etkileşim bekleniyor):", err);
+        });
+    }
+
+    /**
+     * Voldemort Protego kalkanı aktifleştiğinde çalınır.
+     */
+    playVoldemortProtego() {
+        this.playSound(this.soundPaths.voldemortProtego, () => this.playShieldHit());
+    }
+
+    /**
+     * Morgan Protego kalkanı aktifleştiğinde çalınır.
+     */
+    playMorganProtego() {
+        this.playSound(this.soundPaths.morganProtego, () => this.playShieldHit());
+    }
+
+    /**
+     * Voldemort Confringo alan büyüsünü fırlattığında çalınır.
+     */
+    playConfringoCast() {
+        this.playSound(this.soundPaths.confringo, () => this.playWalk());
+    }
+
+    /**
+     * Voldemort Crucio işkence lanetini kanalize ettiğinde çalınır.
+     */
+    playCrucioCast() {
+        this.playSound(this.soundPaths.crucio, () => this.playLightning());
+    }
+
+    /**
+     * Voldemort Avada Kedavra ölüm lanetini fırlattığında çalınır.
+     */
+    playAvadaKedavraCast() {
+        this.playSound(this.soundPaths.avadaKedavra, () => this.playLightning());
+    }
+
+    /**
+     * Morgan Sectumsempra sinsi kesiğini fırlattığında çalınır.
+     */
+    playMorganSectumsempraCast() {
+        this.playSound(this.soundPaths.morganSectumsempra, () => this.playExplosion());
+    }
+
+    /**
+     * Morgan Expelliarmus nihai sersemletme büyüsünü fırlattığında çalınır.
+     */
+    playMorganExpelliarmusCast() {
+        this.playSound(this.soundPaths.morganExpelliarmus, () => this.playLightning());
+    }
+
+    /**
+     * Morgan Crucio veya ağır darbe altında çığlık attığında çalınır.
+     */
+    playMorganScreamSound() {
+        this.playSound(this.soundPaths.morganScream, () => this.playScream(true));
+    }
+
+    /**
+     * Madde 10: Morgan Incendio alev püskürtmesini kanalize ettiğinde döngüsel olarak başlatılır.
+     */
+    startFlame() {
+        this.init();
+        if (this.incendioAudio) return; // Zaten çalıyorsa mükerrer başlatma
+
+        this.incendioAudio = new Audio(this.soundPaths.morganIncendio);
+        this.incendioAudio.loop = true;
+        this.incendioAudio.volume = 0.65;
+        this.incendioAudio.play().catch(err => {
+            console.warn("[SES MOTORU] Incendio MP3 çalınamadı. Sentezleyici harlama sesi başlatılıyor.", err);
+            this.startSyntheticFlame();
+        });
+    }
+
+    /**
+     * Morgan Incendio alev püskürtmesini durdurduğunda çağrılır.
+     */
+    stopFlame() {
+        if (this.incendioAudio) {
+            try {
+                this.incendioAudio.pause();
+                this.incendioAudio.currentTime = 0;
+            } catch(e){}
+            this.incendioAudio = null;
+        }
+        this.stopSyntheticFlame();
+    }
+
+
+    /* ========================================================================
+       YEDEK SENTEZLEYİCİ SİSTEMİ (PROSEDÜREL WEB AUDIO API FALLBACKS)
+       ======================================================================== */
+
+    /**
+     * Beyaz Gürültü (White Noise) Tampon Bellek Oluşturucu.
+     */
+    createNoiseBuffer(seconds = 1.5) {
+        const bufferSize = this.ctx.sampleRate * seconds;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
+
+    /**
+     * Yürüme Ayak Sesi Sentezi (Low-pitched Thud)
+     */
+    playWalk() {
+        this.init();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(95, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.12);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(150, this.ctx.currentTime);
+
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.12);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+    }
+
+    /**
+     * Sentezleyici Patlama Sesi (Confringo Aftermath Fallback)
+     */
+    playExplosion() {
+        this.init();
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.createNoiseBuffer(1.5);
+
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(250, this.ctx.currentTime);
+        noiseFilter.frequency.exponentialRampToValueAtTime(15, this.ctx.currentTime + 1.2);
+
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.2);
+
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.ctx.destination);
+        noise.start();
+
+        const subOsc = this.ctx.createOscillator();
+        const subGain = this.ctx.createGain();
+
+        subOsc.type = 'sine';
+        subOsc.frequency.setValueAtTime(110, this.ctx.currentTime);
+        subOsc.frequency.exponentialRampToValueAtTime(20, this.ctx.currentTime + 0.4);
+
+        subGain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+        subGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+
+        subOsc.connect(subGain);
+        subGain.connect(this.ctx.destination);
+
+        subOsc.start();
+        subOsc.stop(this.ctx.currentTime + 0.4);
+    }
+
+    /**
+     * Sentezleyici Yıldırım Sesi (Crucio / Avada Fallback)
+     */
+    playLightning() {
+        this.init();
+
+        const staticNoise = this.ctx.createBufferSource();
+        staticNoise.buffer = this.createNoiseBuffer(1.0);
+
+        const staticFilter = this.ctx.createBiquadFilter();
+        staticFilter.type = 'highpass';
+        staticFilter.frequency.setValueAtTime(1300, this.ctx.currentTime);
+
+        const staticGain = this.ctx.createGain();
+        staticGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
+        staticGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.9);
+
+        staticNoise.connect(staticFilter);
+        staticFilter.connect(staticGain);
+        staticGain.connect(this.ctx.destination);
+        staticNoise.start();
+
+        const shockOsc = this.ctx.createOscillator();
+        const shockGain = this.ctx.createGain();
+
+        shockOsc.type = 'sawtooth';
+        shockOsc.frequency.setValueAtTime(180, this.ctx.currentTime);
+
+        shockGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+        shockGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.9);
+
+        shockOsc.connect(shockGain);
+        shockGain.connect(this.ctx.destination);
+
+        shockOsc.start();
+        shockOsc.stop(this.ctx.currentTime + 0.9);
+    }
+
+    /**
+     * Prosedürel Alev Sesi Başlatıcı (Incendio Fallback)
+     */
+    startSyntheticFlame() {
+        if (this.fireOsc) return;
+
+        this.fireSource = this.ctx.createBufferSource();
+        this.fireSource.buffer = this.createNoiseBuffer(1.0);
+        this.fireSource.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(320, this.ctx.currentTime);
+        filter.Q.setValueAtTime(2.0, this.ctx.currentTime);
+
+        this.fireGain = this.ctx.createGain();
+        this.fireGain.gain.setValueAtTime(0, this.ctx.currentTime);
+        this.fireGain.gain.linearRampToValueAtTime(0.35, this.ctx.currentTime + 0.15);
+
+        this.fireSource.connect(filter);
+        filter.connect(this.fireGain);
+        this.fireGain.connect(this.ctx.destination);
+        this.fireSource.start();
+
+        this.fireOsc = this.ctx.createOscillator();
+        const lfoGain = this.ctx.createGain();
+
+        this.fireOsc.frequency.setValueAtTime(15, this.ctx.currentTime); 
+        lfoGain.gain.setValueAtTime(80, this.ctx.currentTime);          
+
+        this.fireOsc.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        
+        this.fireOsc.start();
+    }
+
+    /**
+     * Prosedürel Alev Sesi Kapatıcı
+     */
+    stopSyntheticFlame() {
+        const tempSource = this.fireSource;
+        const tempOsc = this.fireOsc;
+        const tempGain = this.fireGain;
+
+        if (tempGain) {
+            try {
+                tempGain.gain.setValueAtTime(tempGain.gain.value, this.ctx.currentTime);
+                tempGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.2);
+            } catch(e){}
+        }
+
+        setTimeout(() => {
+            try { if (tempSource) tempSource.stop(); } catch(e){}
+            try { if (tempOsc) tempOsc.stop(); } catch(e){}
+        }, 200);
+
+        this.fireSource = null;
+        this.fireOsc = null;
+        this.fireGain = null;
+    }
+
+    /**
+     * Sentezleyici İşkence Çığlığı (Scream Fallback)
+     */
+    playScream(isMorgan) {
+        this.init();
+
+        const osc = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        const baseFreq = isMorgan ? 780 : 380;
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
+
+        const lfo = this.ctx.createOscillator();
+        const lfoGain = this.ctx.createGain();
+        
+        lfo.frequency.setValueAtTime(40, this.ctx.currentTime);
+        lfoGain.gain.setValueAtTime(120, this.ctx.currentTime); 
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start();
+
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(baseFreq * 1.8, this.ctx.currentTime);
+        lfoGain.connect(osc2.frequency);
+        osc2.start();
+
+        gain.gain.setValueAtTime(0.32, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.1);
+
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1200, this.ctx.currentTime);
+        filter.Q.setValueAtTime(1.5, this.ctx.currentTime); 
+
+        osc.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc2.start();
+
+        osc.stop(this.ctx.currentTime + 1.1);
+        osc2.stop(this.ctx.currentTime + 1.1);
+        lfo.stop(this.ctx.currentTime + 1.1);
+    }
+
+    /**
+     * Kalkan Darbe Çınlaması (Synthetic Fallback)
+     */
+    playShieldHit() {
+        this.init();
+
+        const carrier = this.ctx.createOscillator();
+        const carrierGain = this.ctx.createGain();
+
+        carrier.type = 'sine';
+        carrier.frequency.setValueAtTime(880, this.ctx.currentTime); 
+
+        const modulator = this.ctx.createOscillator();
+        const modulatorGain = this.ctx.createGain();
+
+        modulator.type = 'sine';
+        modulator.frequency.setValueAtTime(1340, this.ctx.currentTime); 
+        modulatorGain.gain.setValueAtTime(500, this.ctx.currentTime);   
+
+        modulator.connect(modulatorGain);
+        modulatorGain.connect(carrier.frequency);
+
+        carrierGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        carrierGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+
+        carrier.connect(carrierGain);
+        carrierGain.connect(this.ctx.destination);
+
+        modulator.start();
+        carrier.start();
+
+        modulator.stop(this.ctx.currentTime + 0.3);
+        carrier.stop(this.ctx.currentTime + 0.3);
+    }
+
+    /**
+     * Ulti Yeteneği Dolarken Yükselen Çınlama Sesi Sentezi
+     */
+    playChargeUlt() {
+        this.init();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(600, this.ctx.currentTime + 1.0);
+
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 1.0);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 1.0);
+    }
+}
+
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - TAKTİKSEL YAPAY ZEKA (ADVANCED TACTICAL AI) (5. AŞAMA)
+ * ============================================================================
+ * Bu sınıf; rakip büyücünün (AI) tüm karar alma, mermi yörünge simülasyonu,
+ * yer hedefli tehlikelerden kaçınma, kalkan parry zamanlamaları ve akıllı
+ * kombo cezalandırma mekaniklerini yönetir.
+ * 
+ * 5. Aşama Güncellemeleri:
+ * - 120 kare ileriye dönük CPU yörünge simülasyon motoru kuruldu.
+ * - Confringo uyarı çemberinden zıplayarak veya yürüyerek kaçınma eklendi.
+ * - Oyuncunun büyü okuma gecikmesini yakalayıp büyü kesme (interrupt) taktiği yazıldı.
+ * - Milisaniyelik Perfect Protego Parry sistemi entegre edildi.
+ * - Karakter tipine göre özel savaş mesafesi (spacing) yapay zekası yazıldı.
+ */
+
+import { Engine, Vector2 } from './engine.js';
+import { ConfringoArea } from './spell.js';
+
+class DelayedAction {
+    /**
+     * @param {number} delay - Eylemin tetiklenmesi için kalan süre (saniye)
+     * @param {function} callback - Tetiklenecek olan fonksiyon referansı
+     */
+    constructor(delay, callback) {
+        this.delay = delay;
+        this.callback = callback;
+    }
+}
+
+export class AIManager {
+    constructor(game) {
+        this.game = game;
+
+        // Karar alma ve eylem zamanlayıcıları
+        this.decisionTimer = 0;          // Genel taktiksel durum analiz periyodu
+        this.decisionInterval = 0.15;     // CPU yükü gözetmeksizin 150ms'de bir stratejik durum analizi yapılır
+        
+        // İnsansı reaksiyon gecikmeleri kuyruğu
+        this.reactionQueue = [];
+
+        // Kaçınma / Geri çekilme zamanlayıcıları
+        this.evadeTimer = 0;
+        this.evadeDirection = 0;
+    }
+
+    /**
+     * Eylem kuyruğuna gecikmeli bir hamle ekler.
+     */
+    queueAction(delay, callback) {
+        this.reactionQueue.push(new DelayedAction(delay, callback));
+    }
+
+    /**
+     * Reaksiyon kuyruğunda bekleyen tüm gecikmeli eylemleri temizler.
+     */
+    clearReactionQueue() {
+        this.reactionQueue = [];
+    }
+
+    /**
+     * Maçın gidişatına göre dinamik olarak tepki süresi hesaplar.
+     * AI kaybederken veya canı azken odaklanması (reaksiyon hızı) maksimuma ulaşır.
+     */
+    getReactionDelay(ai) {
+        const playerScore = this.game.p1Score;
+        const aiScore = this.game.p2Score;
+
+        let baseDelay = 0.20; // Standart reaksiyon süresi (200ms)
+
+        // AI raunt gerideyse reaksiyon hızı 110ms'ye kadar iner
+        if (playerScore === 1 && aiScore === 0) {
+            baseDelay = 0.11;
+        }
+
+        // Kendi canı %30'un altındaysa adrenalin bonusuyla reaksiyon hızlanır
+        if (ai.hp < 75) {
+            baseDelay -= 0.04;
+        }
+
+        const jitter = (Math.random() * 0.04) - 0.02; // +-20ms insansı sapma
+        return Math.max(0.06, baseDelay + jitter);
+    }
+
+    /**
+     * Yapay Zeka Güncelleme Döngüsü
+     */
+    update(dt, ai, player) {
+        // AI can çekişiyorsa, dondurulmuşsa veya ölüyse hamle yapamaz
+        if (ai.state === 'dead' || ai.state === 'pain' || ai.state === 'stun') {
+            this.clearReactionQueue();
+            return;
+        }
+
+        // 1. Gecikmeli Tepki Kuyruğunun İşletilmesi
+        for (let i = this.reactionQueue.length - 1; i >= 0; i--) {
+            const action = this.reactionQueue[i];
+            action.delay -= dt;
+            if (action.delay <= 0) {
+                action.callback();
+                this.reactionQueue.splice(i, 1);
+            }
+        }
+
+        // 2. DEFANSİF REAKSİYON KATMANI (Her Karede CPU Gelecek Öngörü Simülasyonu)
+        this.handleReactiveDefense(dt, ai, player);
+
+        // 3. OFANSİF STRATEJİ KATMANI (Belirli periyotlarla tetiklenir)
+        this.decisionTimer += dt;
+        if (this.decisionTimer >= this.decisionInterval) {
+            this.decisionTimer -= this.decisionInterval;
+            this.handleTacticalOffense(ai, player);
+        }
+
+        // Kaçınma depar süresi bittiğinde yön ivmesini sıfırla
+        if (this.evadeTimer > 0) {
+            this.evadeTimer -= dt;
+            ai.vx = this.evadeDirection * 5.0;
+        }
+    }
+
+    /**
+     * Madde 9: Gelecek Öngörülü Yoğun CPU Tehdit Analiz ve Parry Motoru
+     */
+    handleReactiveDefense(dt, ai, player) {
+        // --- 1. KISIM: YERDEKİ CONFRINGO UYARI ÇEMBERİ ANALİZİ ---
+        // Yerde parlayan bir Confringo rünü var mı tara
+        const confringoThreat = this.game.spells.effects.find(eff => eff instanceof ConfringoArea && !eff.exploded);
+        if (confringoThreat) {
+            const distToExplosion = Math.abs(ai.x - confringoThreat.x);
+            
+            // Eğer AI tehlike alanının (150px yarıçap) içindeyse kaçınma planla
+            if (distToExplosion < 140) {
+                // Patlamaya kalan süre kritik seviyedeyse zıplayarak veya kaçarak dodgela
+                if (confringoThreat.life < 0.4 && ai.isGrounded) {
+                    this.clearReactionQueue();
+                    
+                    if (Math.random() < 0.70) {
+                        // %70 ihtimalle süzülmeli yüksek zıplamayla kaçınır
+                        ai.vy = -19;
+                        ai.isGrounded = false;
+                    } else {
+                        // %30 ihtimalle ters yöne depar atarak kaçınır
+                        this.evadeTimer = 0.35;
+                        this.evadeDirection = ai.x > confringoThreat.x ? 1 : -1;
+                    }
+                }
+            }
+        }
+
+        // --- 2. KISIM: CPU MERMİ YÖRÜNGE SİMÜLASYONU VE PERFECT PARRY ---
+        const activeProjectiles = this.game.spells.projectiles;
+        
+        // Yapay zekaya doğru yaklaşan en yakın tehlikeli mermiyi bul
+        const threat = activeProjectiles.find(proj => {
+            const isMovingTowardsAI = (proj.vx < 0 && ai.x < proj.x) || (proj.vx > 0 && ai.x > proj.x);
+            return proj.owner === player && isMovingTowardsAI;
+        });
+
+        if (threat) {
+            // Merminin gelecekteki 120 karesini sanal döngüde önden çalıştır
+            let tempX = threat.x;
+            let tempY = threat.y;
+            let stepsToCollide = -1; // Çarpışmaya kalan kare sayısı
+
+            for (let step = 0; step < 120; step++) {
+                tempX += threat.vx * 60 * 0.016; // 60 FPS fizikli kare adımları
+
+                // Yapay zekanın hasar kutusu sınırları
+                const targetH = ai.isDucking ? 150 : 280;
+                const targetW = ai.width || 80;
+                const targetX = ai.x - targetW / 2;
+                const targetY = ai.y - targetH;
+
+                // Merminin o karedeki sınırları
+                const projX = tempX - threat.width / 2;
+                const projY = tempY - threat.height / 2;
+
+                if (Engine.rectCollision(projX, projY, threat.width, threat.height, targetX, targetY, targetW, targetH)) {
+                    stepsToCollide = step;
+                    break; // Çarpışma anı bulundu, simülasyonu sonlandır
+                }
+            }
+
+            // Eğer simülasyon merminin kesinlikle çarpacağını tespit ettiyse:
+            if (stepsToCollide !== -1) {
+                // Mermi yüksekten uçuyorsa eğilerek atlat (ducking)
+                if (threat.y < 440 && stepsToCollide < 20) {
+                    ai.isDucking = true;
+                    return;
+                }
+
+                // Mermi gövde hizasındaysa ve kalkan kapalıysa:
+                if (!ai.shieldActive) {
+                    // Kusursuz Bloklama (Perfect Parry): Çarpışmaya 8 kareden az (130ms) kala kalkanı tetikle!
+                    if (stepsToCollide < 8) {
+                        if (ai.mana > 12) {
+                            ai.shieldActive = true;
+                        }
+                    }
+                }
+            }
+        } else {
+            // Havada aktif bir tehdit kalmadıysa kalkanı anında kapatarak manayı koru
+            if (ai.shieldActive && !player.channelingSpell) {
+                ai.shieldActive = false;
+            }
+        }
+
+        // Oyuncu Crucio veya Incendio kanalize ediyorsa ve menzildeyse kalkanı açık tut
+        if (player.channelingSpell && Math.abs(player.x - ai.x) < 750) {
+            if (!ai.shieldActive && ai.mana > 20) {
+                ai.shieldActive = true;
+            }
+        }
+    }
+
+    /**
+     * Taktiksel Saldırı, Pozisyon Alma ve Alan Cezalandırma Yapay Zekası
+     */
+    handleTacticalOffense(ai, player) {
+        const dist = Math.abs(ai.x - player.x);
+
+        // Kanalize büyü devam ediyorsa hareketi dondur
+        if (ai.channelingSpell) {
+            return;
+        }
+
+        // 1. DURUM: DEPLASMAN VE DEFANSİF turtle MODU (Mana < 25)
+        if (ai.mana < 25) {
+            ai.shieldActive = false;
+            ai.vx = ai.facingRight ? -4.0 : 4.0; // Geri çekil
+            ai.isDucking = true; // Hurtbox'ı daraltarak menzilli mermilerin üstünden geçmesini bekle
+            return;
+        } else {
+            ai.isDucking = false;
+        }
+
+        // 2. DURUM: KOMBO VE BÜYÜ İPTAL CEZALANDIRMASI (INTERRUPT)
+        // Madde 10: Eğer oyuncu büyü sözü söylüyorsa (gecikme kilitliyse), büyü fırlatarak onu havada kes!
+        if (player.castDelayTimer > 0.1 && dist < 750) {
+            if (ai.type === 'voldemort') {
+                // Voldemort Confringo'yu oyuncunun bastığı yere anında dikerek kilitler
+                this.triggerSpell(ai, player, 1);
+                return;
+            } else {
+                // Morgan hızlı bir Sectumsempra mermisi fırlatıp oyuncunun büyü okumasını havada böler
+                this.triggerSpell(ai, player, 2);
+                return;
+            }
+        }
+
+        // 3. DURUM: AKILLI SAVAŞ MESAFESİ (SPACING SENSORS)
+        // Karakter tiplerine ve alev/büyü menzillerine göre optimum alan koruma
+        let targetMinDist = 450;
+        let targetMaxDist = 650;
+
+        if (ai.type === 'morgan') {
+            // Morgan, yeni 500px Incendio sınırını bildiği için daha yakında (350px-480px) durmak ister
+            targetMinDist = 330;
+            targetMaxDist = 480;
+        }
+
+        if (this.evadeTimer <= 0) {
+            if (dist > targetMaxDist) {
+                // Rakip çok uzaktaysa üzerine yürü
+                ai.vx = ai.facingRight ? 3.8 : -3.8;
+            } else if (dist < targetMinDist) {
+                // Rakip çok yakınsa geri adımlarla mesafeyi aç
+                ai.vx = ai.facingRight ? -3.8 : 3.8;
+            } else {
+                // Spacing kusursuz hizada, dur ve ofansif rotasyona başla
+                ai.vx = 0;
+                this.executeSpellAI(ai, player);
+            }
+        }
+    }
+
+    /**
+     * Karakter tipine özel akıllı büyü rotasyon sistemi
+     */
+    executeSpellAI(ai, player) {
+        if (player.state === 'dead' || player.state === 'pain') return;
+
+        if (ai.type === 'voldemort') {
+            // --- VOLDEMORT KOMBO SİSTEMİ ---
+            
+            // Ultimate (Avada Kedavra) hazır durumdaysa:
+            if (ai.ultCharge >= 100) {
+                // Oyuncu havada zıplamıyorsa veya eğilmiyorsa (ıskalama payını sıfıra indir) at!
+                if (!player.isDucking && player.isGrounded && player.castDelayTimer === 0) {
+                    this.triggerSpell(ai, player, 3); // Avada Kedavra lanetini oku
+                    return;
+                }
+            }
+
+            // Oyuncu kalkanını (Protego) kaldırmış kilitli bekliyorsa:
+            if (player.shieldActive) {
+                // Kalkanı delip hasar veren yer hedefli Confringo rününü dik
+                this.triggerSpell(ai, player, 1);
+            } else {
+                // Kalkanı kapalıysa:
+                if (Math.random() < 0.45) {
+                    this.triggerSpell(ai, player, 2); // Crucio ile kilitleyip saniyede 16 hasar ver
+                } else {
+                    this.triggerSpell(ai, player, 1); // Confringo patlaması yerleştir
+                }
+            }
+        } else {
+            // --- MORGAN KOMBO SİSTEMİ ---
+            
+            // Ultimate (Expelliarmus) hazır durumdaysa:
+            if (ai.ultCharge >= 100) {
+                this.triggerSpell(ai, player, 3); // 3.5s kilitleyen sersemletmeyi yolla
+                return;
+            }
+
+            // Oyuncu kalkanını açık tutuyorsa:
+            if (player.shieldActive) {
+                // Incendio alev fırtınasıyla kalkan manasını saniyede 14 birim erit
+                this.triggerSpell(ai, player, 1);
+            } else {
+                // Kalkanı kapalıysa:
+                if (Math.random() < 0.55) {
+                    this.triggerSpell(ai, player, 2); // Sinsi yavaş Sectumsempra mermisini fırlat
+                } else {
+                    this.triggerSpell(ai, player, 1); // Incendio ile alev püskürt ve yakma yükü biriktir
+                }
+            }
+        }
+    }
+
+    /**
+     * Büyü tetikleme komutunu asıl motor köprüsüne iletir.
+     */
+    triggerSpell(ai, player, index) {
+        if (ai.channelingSpell) return;
+
+        const mainJS = this.game; 
+        const castSpell = mainJS.canvas.ownerDocument.defaultView.castSpell || window.castSpell;
+        
+        if (castSpell) {
+            castSpell(ai, player, index);
+        } else {
+            const globalCast = window.castSpell;
+            if (typeof globalCast === 'function') {
+                globalCast(ai, player, index);
+            }
+        }
+    }
+}
+
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - INPUT HANDLER & BINDING SOYUTLAMA SİSTEMİ
+ * ============================================================================
+ */
+
+import { Engine } from './engine.js';
+
+const castSpellWrapper = (caster, target, index) => {
+    const globalCast = window.castSpell;
+    if (typeof globalCast === 'function') {
+        globalCast(caster, target, index);
+    }
+};
+
+export class InputHandler {
+    constructor(game) {
+        this.game = game;
+        this.keys = {};
+        this.actions = {
+            LEFT: false,
+            RIGHT: false,
+            JUMP: false,
+            DUCK: false,
+            PROTEGO: false
+        };
+        this.prevActions = {
+            SPELL1: false,
+            SPELL2: false,
+            ULTIMATE: false
+        };
+        this.touchActive = false;
+        this.gamepadConnected = false;
+        this.activeGamepadIndex = null;
+    }
+
+    bindEvents() {
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            this.keys[key] = true;
+
+            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+
+            if (this.game.audio) {
+                this.game.audio.init();
+            }
+
+            // DÜZELTME: gameRunning yerine currentState kontrolü sağlandı
+            if (this.game.currentState === 'PLAYING' && this.game.p1 && this.game.p1.state !== 'dead') {
+                if (key === '2' || key === 'k') {
+                    this.triggerSpellAction(1);
+                }
+                if (key === '3' || key === 'l') {
+                    this.triggerSpellAction(2);
+                }
+                if (key === '4' || key === 'i') {
+                    this.triggerSpellAction(3);
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            this.keys[key] = false;
+
+            if (this.game.currentState === 'PLAYING' && this.game.p1) {
+                if (this.game.p1.type === 'voldemort' && (key === '3' || key === 'l')) {
+                    if (this.game.p1.channelingSpell === 'crucio') {
+                        this.game.p1.stopChannel();
+                    }
+                }
+                if (this.game.p1.type === 'morgan' && (key === '2' || key === 'k')) {
+                    if (this.game.p1.channelingSpell === 'incendio') {
+                        this.game.p1.stopChannel();
+                    }
+                }
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            this.keys = {};
+            this.resetActions();
+            if (this.game.p1) {
+                this.game.p1.shieldActive = false;
+                this.game.p1.stopChannel();
+            }
+        });
+
+        this.setupMobileEvents();
+
+        window.addEventListener('gamepadconnected', (e) => {
+            this.gamepadConnected = true;
+            this.activeGamepadIndex = e.gamepad.index;
+        });
+
+        window.addEventListener('gamepaddisconnected', (e) => {
+            this.gamepadConnected = false;
+            this.activeGamepadIndex = null;
+            this.resetActions();
+        });
+    }
+
+    resetActions() {
+        Object.keys(this.actions).forEach(act => this.actions[act] = false);
+    }
+
+    setupMobileEvents() {
+        const controlsOverlay = document.getElementById('mobile-controls');
+        if (!controlsOverlay) return;
+
+        if ('ontouchstart' in window) {
+            controlsOverlay.style.display = 'flex';
+            this.touchActive = true;
+        }
+
+        const buttonMappings = {
+            'btn-up': 'JUMP',
+            'btn-left': 'LEFT',
+            'btn-right': 'RIGHT',
+            'btn-down': 'DUCK',
+            'btn-prot': 'PROTEGO'
+        };
+
+        const discreteMappings = {
+            'btn-sp1': 1,
+            'btn-sp2': 2,
+            'btn-ult': 3
+        };
+
+        Object.keys(buttonMappings).forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            const action = buttonMappings[btnId];
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.actions[action] = true;
+                this.game.audio.init();
+            });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.actions[action] = false;
+                
+                if (action === 'PROTEGO' && this.game.p1) {
+                    this.game.p1.shieldActive = false;
+                }
+            });
+
+            btn.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                this.actions[action] = false;
+                if (action === 'PROTEGO' && this.game.p1) {
+                    this.game.p1.shieldActive = false;
+                }
+            });
+        });
+
+        Object.keys(discreteMappings).forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+
+            const spellIndex = discreteMappings[btnId];
+
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.game.audio.init();
+
+                if (this.game.currentState === 'PLAYING' && this.game.p1 && this.game.p1.state !== 'dead') {
+                    this.triggerSpellAction(spellIndex);
+                }
+            });
+
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (this.game.currentState === 'PLAYING' && this.game.p1) {
+                    if (this.game.p1.type === 'voldemort' && spellIndex === 2) {
+                        if (this.game.p1.channelingSpell === 'crucio') this.game.p1.stopChannel();
+                    }
+                    if (this.game.p1.type === 'morgan' && spellIndex === 1) {
+                        if (this.game.p1.channelingSpell === 'incendio') this.game.p1.stopChannel();
+                    }
+                }
+            });
+        });
+    }
+
+    triggerSpellAction(spellIndex) {
+        if (!this.game.p1 || !this.game.p2) return;
+        castSpellWrapper(this.game.p1, this.game.p2, spellIndex);
+    }
+
+    pollGamepad() {
+        if (!this.gamepadConnected || this.activeGamepadIndex === null) return;
+
+        const gamepad = navigator.getGamepads()[this.activeGamepadIndex];
+        if (!gamepad) return;
+
+        const axisX = gamepad.axes[0];
+        const axisY = gamepad.axes[1];
+
+        const dpadUp = gamepad.buttons[12]?.pressed;
+        const dpadDown = gamepad.buttons[13]?.pressed;
+        const dpadLeft = gamepad.buttons[14]?.pressed;
+        const dpadRight = gamepad.buttons[15]?.pressed;
+
+        this.actions.LEFT = (axisX < -0.3) || dpadLeft;
+        this.actions.RIGHT = (axisX > 0.3) || dpadRight;
+
+        const buttonA = gamepad.buttons[0]?.pressed;
+        this.actions.JUMP = (axisY < -0.5) || dpadUp || buttonA;
+        this.actions.DUCK = (axisY > 0.5) || dpadDown;
+
+        const buttonB = gamepad.buttons[1]?.pressed;
+        const buttonRB = gamepad.buttons[5]?.pressed;
+        this.actions.PROTEGO = buttonB || buttonRB;
+
+        const buttonX = gamepad.buttons[2]?.pressed;
+        if (buttonX) {
+            if (!this.prevActions.SPELL1) {
+                this.triggerSpellAction(1);
+                this.prevActions.SPELL1 = true;
+            }
+        } else {
+            if (this.prevActions.SPELL1) {
+                this.prevActions.SPELL1 = false;
+                if (this.game.p1 && this.game.p1.type === 'morgan') {
+                    if (this.game.p1.channelingSpell === 'incendio') this.game.p1.stopChannel();
+                }
+            }
+        }
+
+        const buttonY = gamepad.buttons[3]?.pressed;
+        if (buttonY) {
+            if (!this.prevActions.SPELL2) {
+                this.triggerSpellAction(2);
+                this.prevActions.SPELL2 = true;
+            }
+        } else {
+            if (this.prevActions.SPELL2) {
+                this.prevActions.SPELL2 = false;
+                if (this.game.p1 && this.game.p1.type === 'voldemort') {
+                    if (this.game.p1.channelingSpell === 'crucio') this.game.p1.stopChannel();
+                }
+            }
+        }
+
+        const buttonRT = gamepad.buttons[7]?.pressed;
+        if (buttonRT) {
+            if (!this.prevActions.ULTIMATE) {
+                this.triggerSpellAction(3);
+                this.prevActions.ULTIMATE = true;
+            }
+        } else {
+            this.prevActions.ULTIMATE = false;
+        }
+    }
+
+    updatePlayerMovement(player) {
+        if (!player || player.state === 'dead' || player.state === 'stun' || player.state === 'pain') {
+            return;
+        }
+
+        this.pollGamepad();
+
+        player.vx = 0;
+
+        const goLeft = this.keys['a'] || this.keys['arrowleft'] || this.actions.LEFT;
+        const goRight = this.keys['d'] || this.keys['arrowright'] || this.actions.RIGHT;
+
+        if (goLeft) {
+            player.vx = -5;
+        }
+        if (goRight) {
+            player.vx = 5;
+        }
+
+        const doJump = this.keys['w'] || this.keys['arrowup'] || this.actions.JUMP;
+        if (doJump && player.isGrounded) {
+            player.vy = -15;
+            player.isGrounded = false;
+        }
+
+        const doDuck = this.keys['s'] || this.keys['arrowdown'] || this.actions.DUCK;
+        player.isDucking = doDuck;
+
+        const holdShield = this.keys['j'] || this.keys['1'] || this.actions.PROTEGO;
+        if (holdShield) {
+            if (player.mana > 5) {
+                player.shieldActive = true;
+            } else {
+                player.shieldActive = false;
+            }
+        } else {
+            player.shieldActive = false;
+        }
+    }
+}
+
+        /**
+ * ============================================================================
+ * HOGWARTS DUEL - CORE COORDINATOR & GAME ENGINE ORCHESTRATOR (PART 1)
+ * ============================================================================
+ * Bu dosya, oyunun merkezi işlem birimidir. Oyun durum makinelerini (FSM),
+ * delta-time tabanlı oyun döngüsünü, görsel ölçeklendirmeyi, varlık (asset)
+ * yükleme süreçlerini ve diğer tüm alt modüllerin (Fizik, Yapay Zeka, Ses,
+ * Girdi, Çizim) koordinasyonunu yönetir.
+ * 
+ * Bu dosya, boyut sınırlarını aşmamak amacıyla iki aşamada sunulmaktadır.
+ * Birinci kısım; import şemalarını, ön yükleme (preload) algoritmalarını ve
+ * ekran sığdırma/ölçeklendirme matematiklerini içermektedir.
+ */
+
+// Alt Modüllerin İçe Aktarılması
+import { Engine, particles } from './engine.js';
+import { InputHandler } from './input.js';
+import { Character } from './character.js';
+import { SpellManager, Projectile } from './spell.js';
+import { AIManager } from './ai.js';
+import { AudioController } from './audio.js';
+
+/**
+ * Oyun Ayarları ve Sabitler Konfigürasyonu
+ * 16:9 sanal düzlem ve yerçekimi değerleri burada belirlenir.
+ */
+const CONFIG = {
+    VIRTUAL_WIDTH: 1280,   // Oyunun matematiksel genişliği (16:9)
+    VIRTUAL_HEIGHT: 720,   // Oyunun matematiksel yüksekliği (16:9)
+    MAX_DELTA_TIME: 0.1,   // Sekme/ donma anlarında fiziğin sapmaması için maksimum dt sınırı (saniye)
+    ROUND_DURATION: 99,    // Raunt süresi (saniye)
+    GRAVITY: 0.8,          // Evrensel yerçekimi sabiti
+    FLOOR_Y: 600           // Karakterlerin ayak basacağı zemin yüksekliği
+};
+
+/**
+ * Oyun Durumları (Game State Machine Enum)
+ * Savaşın hangi aşamada olduğunu takip eden durum yapısı.
+ */
+const GAME_STATES = {
+    LOADING: 'LOADING',
+    MENU: 'MENU',
+    CHARACTER_SELECT: 'CHARACTER_SELECT',
+    PLAYING: 'PLAYING',
+    ROUND_OVER: 'ROUND_OVER',
+    GAME_OVER: 'GAME_OVER',
+    PAUSED: 'PAUSED'
+};
+
+/**
+ * Ana Oyun Koordinatörü Sınıfı
+ * Tüm alt yöneticileri bünyesinde barındırır ve tek bir merkezi çatı altında işletir.
+ */
+class GameOrchestrator {
+    constructor() {
+        // HTML Canvas Kurulumu
+        this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            this.canvas = document.createElement('canvas');
+            this.canvas.id = 'gameCanvas';
+            document.getElementById('game-container').appendChild(this.canvas);
+        }
+        this.ctx = this.canvas.getContext('2d');
+
+        // Oyun Durumu Başlangıcı (Yükleme ekranıyla başlar)
+        this.currentState = GAME_STATES.LOADING;
+
+        // Zamanlayıcı Değişkenleri (Delta Time Hesaplamaları)
+        this.lastTime = 0;
+        this.accumulatedTime = 0;
+        this.roundTimer = CONFIG.ROUND_DURATION;
+        this.roundTimeMs = 0; // Raunt süresi milisaniye takibi
+
+        // Görsel Ölçeklendirme ve Letterboxing (Siyah Kenarlık) Bilgileri
+        this.scaleX = 1;
+        this.scaleY = 1;
+        this.offsetX = 0;
+        this.offsetY = 0;
+
+        // Kamera Sarsıntı (Screen Shake) Motoru Değişkenleri
+        this.shakeIntensity = 0;
+        this.shakeDuration = 0;
+        this.shakeX = 0;
+        this.shakeY = 0;
+
+        // Alt Modül Örnekleri (Instances)
+        this.audio = new AudioController();
+        this.input = new InputHandler(this);
+        this.spells = new SpellManager(this);
+        this.ai = new AIManager(this);
+
+        // Karakter ve Raunt Bilgileri
+        this.playerCharacterType = 'voldemort'; // Varsayılan seçim
+        this.p1 = null; // Oyuncu
+        this.p2 = null; // Yapay Zeka
+        this.p1Score = 0;
+        this.p2Score = 0;
+        this.currentRound = 1;
+
+        // Yumuşak Geçişli (Lerp) HUD Barları İçin Hedef Değerler (250 HP tabanına göre)
+        this.p1DisplayHp = 250;
+        this.p2DisplayHp = 250;
+        this.p1DisplayMana = 100;
+        this.p2DisplayMana = 100;
+
+        // Yüklenecek Görsellerin Listesi ve Yollarının Tanımlanması
+        this.assets = {
+            images: {},
+            loadedCount: 0,
+            totalCount: 0
+        };
+
+        this.assetManifest = {
+            // Arka Plan
+            bg: 'arkaplan.png',
+            
+            // Kalkan ve Kan Efektleri
+            protego: 'protego.png',
+            blood: 'sectumsemprablood.png',
+
+            // Büyü Efektleri (Projektiller ve Işınlar)
+            avadakedavra: 'avadakedavra.png',
+            expelliarmus: 'expelliarmus.png',
+            crucio: 'crucio.png',
+            sectumsempra: 'sectumsempra.png',
+            confringo1: 'confringo1.png',
+            confringo2: 'confringo2.png',
+            confringo3: 'confringo3.png',
+            confringo4: 'confringo4.png',
+            incendio1: 'incendio1.png',
+            incendio2: 'incendio2.png',
+            incendio3: 'incendio3.png',
+
+            // Voldemort Animasyon Kareleri
+            voldemortstand: 'voldemortstand.png',
+            voldemortattack1: 'voldemortattack1.png',
+            voldemortattack2: 'voldemortattack2.png',
+            voldemortattack3: 'voldemortattack3.png',
+            voldemortwalk1: 'voldemortwalk1.png',
+            voldemortwalk2: 'voldemortwalk2.png',
+            voldemortwalk3: 'voldemortwalk3.png',
+            voldemortwalk4: 'voldemortwalk4.png',
+            voldemortwalk5: 'voldemortwalk5.png',
+            voldemortwalk6: 'voldemortwalk6.png',
+            voldemortwalk7: 'voldemortwalk7.png',
+
+            // Morgan Animasyon Kareleri
+            morganstand: 'morganstand.png',
+            morganattack1: 'morganattack1.png',
+            morganattack2: 'morganattack2.png',
+            morganattack3: 'morganattack3.png',
+            morganwalk1: 'morganwalk1.png',
+            morganwalk2: 'morganwalk2.png',
+            morganwalk3: 'morganwalk3.png',
+            morganwalk4: 'morganwalk4.png',
+            morganwalk5: 'morganwalk5.png',
+            morganwalk6: 'morganwalk6.png',
+            morganwalk7: 'morganwalk7.png'
+        };
+
+        // Başlatma Rutini
+        this.init();
+    }
+
+    /**
+     * Motorun ilk kurulum adımlarını yönetir.
+     */
+    init() {
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+
+        // Event Dinleyicilerini Kur (Klavye, dokunmatik, vb.)
+        this.input.bindEvents();
+
+        // Görsel Varlıkları Yüklemeye Başla
+        this.preloadAssets();
+    }
+
+    /**
+     * Ekran çözünürlüğü değişimi durumlarında 16:9 oranını koruyarak letterbox çizer.
+     * Sanal pikselleri fiziksel ekran pikselleri ile eşleştirir.
+     */
+    resizeCanvas() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        const windowRatio = windowWidth / windowHeight;
+        const virtualRatio = CONFIG.VIRTUAL_WIDTH / CONFIG.VIRTUAL_HEIGHT;
+
+        let canvasWidth, canvasHeight;
+
+        if (windowRatio > virtualRatio) {
+            canvasHeight = windowHeight;
+            canvasWidth = canvasHeight * virtualRatio;
+            this.offsetX = (windowWidth - canvasWidth) / 2;
+            this.offsetY = 0;
+        } else {
+            canvasWidth = windowWidth;
+            canvasHeight = canvasWidth / virtualRatio;
+            this.offsetX = 0;
+            this.offsetY = (windowHeight - canvasHeight) / 2;
+        }
+
+        this.canvas.style.position = 'absolute';
+        this.canvas.style.width = `${canvasWidth}px`;
+        this.canvas.style.height = `${canvasHeight}px`;
+        this.canvas.style.left = `${this.offsetX}px`;
+        this.canvas.style.top = `${this.offsetY}px`;
+
+        this.canvas.width = CONFIG.VIRTUAL_WIDTH;
+        this.canvas.height = CONFIG.VIRTUAL_HEIGHT;
+
+        this.scaleX = canvasWidth / CONFIG.VIRTUAL_WIDTH;
+        this.scaleY = canvasHeight / CONFIG.VIRTUAL_HEIGHT;
+    }
+
+    /**
+     * Manifestteki tüm görselleri önbelleğe asenkron olarak yükler.
+     */
+    preloadAssets() {
+        const keys = Object.keys(this.assetManifest);
+        this.assets.totalCount = keys.length;
+
+        if (this.assets.totalCount === 0) {
+            this.onAssetsLoaded();
+            return;
+        }
+
+        keys.forEach(key => {
+            const img = new Image();
+            img.src = this.assetManifest[key];
+            img.onload = () => {
+                this.assets.images[key] = img;
+                this.assets.loadedCount++;
+                
+                this.renderLoadingProgress();
+
+                if (this.assets.loadedCount === this.assets.totalCount) {
+                    this.onAssetsLoaded();
+                }
+            };
+            img.onerror = () => {
+                console.error(`Görsel yüklenemedi: ${this.assetManifest[key]}`);
+                this.assets.loadedCount++;
+                if (this.assets.loadedCount === this.assets.totalCount) {
+                    this.onAssetsLoaded();
+                }
+            };
+        });
+    }
+
+    /**
+     * Yükleme ekranındaki ilerleme çubuğunu çizer.
+     */
+    renderLoadingProgress() {
+        this.ctx.fillStyle = '#0c0f12';
+        this.ctx.fillRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
+
+        const percent = Math.floor((this.assets.loadedCount / this.assets.totalCount) * 100);
+        
+        this.ctx.fillStyle = '#d4af37';
+        this.ctx.font = 'bold 36px Cinzel, Georgia, serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('HOGWARTS DUELLOSU', CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 - 50);
+
+        this.ctx.font = '16px monospace';
+        this.ctx.fillStyle = '#8a94a6';
+        this.ctx.fillText(`Asalar Hazırlanıyor... %${percent}`, CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 + 10);
+
+        const barW = 400;
+        const barH = 14;
+        const barX = (CONFIG.VIRTUAL_WIDTH - barW) / 2;
+        const barY = CONFIG.VIRTUAL_HEIGHT / 2 + 30;
+
+        this.ctx.strokeStyle = '#2d3545';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(barX, barY, barW, barH);
+
+        this.ctx.fillStyle = '#d4af37';
+        this.ctx.fillRect(barX + 2, barY + 2, (barW - 4) * (percent / 100), barH - 4);
+    }
+
+    /**
+     * Tüm görseller asenkron olarak yüklendiğinde tetiklenir.
+     */
+    onAssetsLoaded() {
+        // Durumu Karakter Seçim Menüsüne Geçir
+        this.currentState = GAME_STATES.CHARACTER_SELECT;
+        
+        // Ana Döngüyü Başlat (Süreç döngüsü aktifleşir)
+        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+    }
+
+    /**
+     * Karakter seçimi tamamlanıp düello başlatıldığında tetiklenir.
+     * @param {string} selectedType - Seçilen karakter tipi ('voldemort' veya 'morgan')
+     */
+    startDuel(selectedType) {
+        this.playerCharacterType = selectedType;
+        this.currentRound = 1;
+        this.p1Score = 0;
+        this.p2Score = 0;
+
+        this.initRound();
+
+        this.currentState = GAME_STATES.PLAYING;
+    }
+
+    /**
+     * Belirli bir raundu tamamen sıfırlar ve konumlandırır.
+     */
+    initRound() {
+        this.audio.stopFlame();
+
+        // Karakter Nesnelerini Oluştur
+        if (this.playerCharacterType === 'voldemort') {
+            this.p1 = new Character('voldemort', true, 200, this, CONFIG);
+            this.p2 = new Character('morgan', false, 1080, this, CONFIG);
+        } else {
+            this.p1 = new Character('morgan', true, 200, this, CONFIG);
+            this.p2 = new Character('voldemort', false, 1080, this, CONFIG);
+        }
+
+        // HUD Gösterge Değerlerini Can Tabanına (250) Göre Sıfırla
+        this.p1DisplayHp = 250;
+        this.p2DisplayHp = 250;
+        this.p1DisplayMana = 100;
+        this.p2DisplayMana = 100;
+
+        this.roundTimer = CONFIG.ROUND_DURATION;
+        this.roundTimeMs = 0;
+        this.spells.clearAll();
+        particles.length = 0;
+
+        this.audio.playLightning();
+    }
+
+    // --- PART 1 BURADA SONLANIYOR ---
+    // Sınıfın devamı (Sarsıntı, update, render, HUD, büyü gecikme kontrolleri vb.) PART 2 ile eklenecektir.
+
+/**
+     * Kamera sarsıntısı (Screen Shake) yoğunluğunu ve süresini belirler.
+     * @param {number} intensity - Sarsıntı gücü (piksel sapması)
+     * @param {number} duration - Sarsıntı süresi (saniye)
+     */
+    triggerScreenShake(intensity, duration) {
+        this.shakeIntensity = intensity;
+        this.shakeDuration = duration;
+    }
+
+    /**
+     * Delta Time tabanlı ana oyun döngüsü. Tarayıcının yenilenme hızına uyum sağlar.
+     * @param {number} timestamp - Tarayıcıdan gelen milisaniye cinsinden anlık zaman damgası
+     */
+    gameLoop(timestamp) {
+        if (!this.lastTime) {
+            this.lastTime = timestamp;
+        }
+
+        let deltaTime = (timestamp - this.lastTime) / 1000;
+        this.lastTime = timestamp;
+
+        // Sekme veya donma anlarında fiziğin bozulmaması için üst sınır
+        if (deltaTime > CONFIG.MAX_DELTA_TIME) {
+            deltaTime = CONFIG.MAX_DELTA_TIME;
+        }
+
+        this.update(deltaTime);
+        this.render();
+
+        requestAnimationFrame((t) => this.gameLoop(t));
+    }
+
+    /**
+     * Tüm nesnelerin, fiziklerin, büyü okuma süreçlerinin ve ses tetikleyicilerinin güncellendiği merkezi metot.
+     * @param {number} dt - Geçen zaman dilimi (saniye)
+     */
+    update(dt) {
+        // Kamera Sarsıntısı (Screen Shake) hesabı
+        if (this.shakeDuration > 0) {
+            this.shakeDuration -= dt;
+            this.shakeX = (Math.random() * 2 - 1) * this.shakeIntensity;
+            this.shakeY = (Math.random() * 2 - 1) * this.shakeIntensity;
+        } else {
+            this.shakeX = 0;
+            this.shakeY = 0;
+        }
+
+        // Oyun oynamıyor durumundaysa güncellemeleri durdur
+        if (this.currentState !== GAME_STATES.PLAYING) {
+            return;
+        }
+
+        // Raunt Süresi Takipçisi (Saniye biriktirme mantığı)
+        this.roundTimeMs += dt * 1000;
+        if (this.roundTimeMs >= 1000) {
+            this.roundTimer = Math.max(0, this.roundTimer - 1);
+            this.roundTimeMs -= 1000;
+
+            if (this.roundTimer === 0) {
+                this.handleRoundEnd(true);
+            }
+        }
+
+        // --- MADDE 10: PROTEGO KALKANI MP3 SES TETİKLEYİCİSİ ---
+        // Karakter kalkanı açtığı an tek seferlik kalkan aktifleşme sesi (.mp3) tetiklenir
+        [this.p1, this.p2].forEach(char => {
+            if (char && char.state !== 'dead') {
+                if (char.shieldActive && !char.prevShieldActive) {
+                    if (char.type === 'voldemort') {
+                        this.audio.playVoldemortProtego();
+                    } else {
+                        this.audio.playMorganProtego();
+                    }
+                }
+                char.prevShieldActive = char.shieldActive; // Önceki kare durumunu güncelle
+            }
+        });
+
+        // --- MADDE 10: 1 SANİYELİK BÜYÜ GECİKMESİ VE HAZIRLIK TAKİBİ ---
+        // Eğer bir büyücü büyü sözünü söylemiş ve castDelayTimer'ı bitmişse asıl mermiyi fırlatır
+        [this.p1, this.p2].forEach(caster => {
+            if (caster && caster.pendingSpellIndex !== null && caster.castDelayTimer <= 0) {
+                this.executePendingSpell(caster);
+            }
+        });
+
+        // Oyuncu girdilerini işle
+        this.input.updatePlayerMovement(this.p1);
+
+        // Karakterleri ve fizik konumlarını güncelle
+        this.p1.update(dt, this.p2);
+        this.p2.update(dt, this.p1);
+
+        // Yapay Zekayı (AI) güncelle
+        this.ai.update(dt, this.p2, this.p1);
+
+        // Büyüleri, mermileri ve sürekli alev menzillerini güncelle
+        this.spells.update(dt, this.p1, this.p2);
+
+        // Parçacık efektlerini güncelle
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update(dt);
+            if (particles[i].life <= 0) {
+                particles.splice(i, 1);
+            }
+        }
+
+        // Lerp HUD barları yumuşak geçiş güncellemesi (250 HP tabanına göre dengelenmiştir)
+        const lerpFactor = 10 * dt;
+        this.p1DisplayHp += (this.p1.hp - this.p1DisplayHp) * lerpFactor;
+        this.p2DisplayHp += (this.p2.hp - this.p2DisplayHp) * lerpFactor;
+        
+        this.p1DisplayMana += (this.p1.mana - this.p1DisplayMana) * lerpFactor;
+        this.p2DisplayMana += (this.p2.mana - this.p2DisplayMana) * lerpFactor;
+
+        // Canı sıfırlanan karakter varsa raundu sonlandır
+        if (this.p1.hp <= 0 || this.p2.hp <= 0) {
+            this.handleRoundEnd(false);
+        }
+    }
+
+    /**
+     * Raunt bittiğinde puan durumunu ve kazananı belirler.
+     * @param {boolean} isTimeOut - Raunt süresinin dolup dolmadığı bilgisi
+     */
+    handleRoundEnd(isTimeOut) {
+        this.currentState = GAME_STATES.ROUND_OVER;
+        this.audio.stopFlame();
+
+        let winner = null;
+
+        if (isTimeOut) {
+            if (this.p1.hp > this.p2.hp) {
+                winner = this.p1;
+                this.p1Score++;
+            } else if (this.p2.hp > this.p1.hp) {
+                winner = this.p2;
+                this.p2Score++;
+            }
+        } else {
+            if (this.p1.hp > 0) {
+                winner = this.p1;
+                this.p1Score++;
+            } else {
+                winner = this.p2;
+                this.p2Score++;
+            }
+        }
+
+        if (winner) {
+            winner.say("Zafer benim!");
+        }
+
+        setTimeout(() => {
+            if (this.p1Score >= 2 || this.p2Score >= 2) {
+                this.currentState = GAME_STATES.GAME_OVER;
+                document.getElementById('game-over-screen').style.display = 'flex';
+                const gameOverText = document.getElementById('game-over-text');
+                if (this.p1Score >= 2) {
+                    gameOverText.innerText = "DÜELLO KAZANILDI!";
+                    gameOverText.style.color = '#d4af37';
+                } else {
+                    gameOverText.innerText = "DÜELLO KAYBEDİLDİ";
+                    gameOverText.style.color = '#ff3333';
+                }
+            } else {
+                this.currentRound++;
+                this.initRound();
+                this.currentState = GAME_STATES.PLAYING;
+            }
+        }, 3000);
+    }
+
+    /**
+     * Görsel render katmanı. Tüm çizim matrislerini yönetir.
+     */
+    render() {
+        this.ctx.save();
+        this.ctx.clearRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
+
+        // Kamera sarsıntısı aktifse ekran matrisini kaydır
+        if (this.shakeIntensity > 0) {
+            this.ctx.translate(this.shakeX, this.shakeY);
+        }
+
+        // Arka plan resmini veya düz rengi çiz
+        if (this.assets.images.bg) {
+            this.ctx.drawImage(this.assets.images.bg, 0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
+        } else {
+            this.ctx.fillStyle = '#111318';
+            this.ctx.fillRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
+        }
+
+        // Oyun veya Raunt Sonu aşamasındaysak karakterleri ve büyüleri çiz
+        if (this.currentState === GAME_STATES.PLAYING || this.currentState === GAME_STATES.ROUND_OVER) {
+            this.spells.draw(this.ctx);
+
+            if (this.p1) this.p1.draw(this.ctx);
+            if (this.p2) this.p2.draw(this.ctx);
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].draw(this.ctx);
+            }
+
+            this.drawHUD();
+        }
+
+        if (this.currentState === GAME_STATES.ROUND_OVER) {
+            this.drawRoundOverScreen();
+        }
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Madde 1: HUD Gösterge Barlarının Ayrı ve Simetrik Olarak Çizilmesi
+     */
+    drawHUD() {
+        // Sol Panel: Oyuncu Büyücü Göstergeleri (Can, Mana, Ulti)
+        this.drawBar(50, 40, 320, 22, this.p1DisplayHp / 250, '#ff3333', '#4a0d0d', 'CAN');
+        this.drawBar(50, 70, 240, 12, this.p1DisplayMana / 100, '#3399ff', '#0d284a', 'MANA');
+        this.drawBar(50, 90, 240, 8, this.p1.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI');
+
+        this.ctx.save();
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 22px "Cinzel", serif';
+        this.ctx.fillText(this.p1.type.toUpperCase() + ' (SEN)', 50, 30);
+        this.ctx.restore();
+
+        // Sağ Panel: Yapay Zeka Karakter Göstergeleri (Can, Mana, Ulti)
+        // Madde 1: alignRight true verilerek x=50 girildiğinde barlar sağ kenardan simetrik hizalanır
+        this.drawBar(50, 40, 320, 22, this.p2DisplayHp / 250, '#ff3333', '#4a0d0d', 'CAN', true);
+        this.drawBar(50, 70, 240, 12, this.p2DisplayMana / 100, '#3399ff', '#0d284a', 'MANA', true);
+        this.drawBar(50, 90, 240, 8, this.p2.ultCharge / 100, '#ffcc00', '#4a3c0d', 'ULTI', true);
+
+        this.ctx.save();
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 22px "Cinzel", serif';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(this.p2.type.toUpperCase() + ' (AI)', CONFIG.VIRTUAL_WIDTH - 50, 30);
+        this.ctx.restore();
+
+        this.drawCenterHUD();
+    }
+
+    /**
+     * HUD Barlarını çizen parametrik metot.
+     */
+    drawBar(x, y, w, h, pct, fgColor, bgColor, label, alignRight = false) {
+        this.ctx.save();
+        
+        let drawX = x;
+        if (alignRight) {
+            drawX = CONFIG.VIRTUAL_WIDTH - x - w;
+        }
+
+        this.ctx.fillStyle = bgColor;
+        this.ctx.fillRect(drawX, y, w, h);
+
+        const activeWidth = Math.max(0, w * Math.min(1, pct));
+        this.ctx.fillStyle = fgColor;
+        this.ctx.fillRect(drawX, y, activeWidth, h);
+
+        this.ctx.strokeStyle = '#2d3545';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(drawX, y, w, h);
+
+        this.ctx.fillStyle = '#8a94a6';
+        this.ctx.font = 'bold 10px monospace';
+        this.ctx.textBaseline = 'middle';
+        
+        if (alignRight) {
+            this.ctx.textAlign = 'right';
+            this.ctx.fillText(label, drawX - 10, y + h / 2);
+        } else {
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(label, drawX + w + 10, y + h / 2);
+        }
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Ekranın ortasında yer alan süreyi ve raunt skor boncuklarını çizer.
+     */
+    drawCenterHUD() {
+        this.ctx.save();
+
+        const panelW = 120;
+        const panelH = 70;
+        const panelX = (CONFIG.VIRTUAL_WIDTH - panelW) / 2;
+        const panelY = 20;
+
+        this.ctx.fillStyle = 'rgba(12, 15, 18, 0.85)';
+        this.ctx.strokeStyle = '#d4af37';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.roundRect(panelX, panelY, panelW, panelH, 6);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = this.roundTimer <= 10 ? '#ff3333' : '#ffffff';
+        this.ctx.font = 'bold 32px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(this.roundTimer.toString().padStart(2, '0'), CONFIG.VIRTUAL_WIDTH / 2, panelY + 32);
+
+        this.ctx.fillStyle = '#8a94a6';
+        this.ctx.font = 'bold 11px "Cinzel", serif';
+        this.ctx.fillText(`RAUNT ${this.currentRound}`, CONFIG.VIRTUAL_WIDTH / 2, panelY + 48);
+
+        const drawScoreDots = (score, startX, direction) => {
+            const dotRadius = 5;
+            const gap = 14;
+            for (let i = 0; i < 2; i++) {
+                this.ctx.beginPath();
+                this.ctx.arc(startX + i * gap * direction, panelY + 60, dotRadius, 0, Math.PI * 2);
+                if (i < score) {
+                    this.ctx.fillStyle = '#d4af37';
+                } else {
+                    this.ctx.fillStyle = '#2d3545';
+                }
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#0c0f12';
+                this.ctx.lineWidth = 1;
+                this.ctx.stroke();
+            }
+        };
+
+        drawScoreDots(this.p1Score, CONFIG.VIRTUAL_WIDTH / 2 - 15, -1);
+        drawScoreDots(this.p2Score, CONFIG.VIRTUAL_WIDTH / 2 + 15, 1);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Raunt bittiğinde K.O. ekranını çizer.
+     */
+    drawRoundOverScreen() {
+        this.ctx.save();
+        this.ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        this.ctx.fillRect(0, 0, CONFIG.VIRTUAL_WIDTH, CONFIG.VIRTUAL_HEIGHT);
+
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+
+        let mainText = "K.O.";
+        let mainColor = '#ff3333';
+
+        if (this.roundTimer === 0 && this.p1.hp > 0 && this.p2.hp > 0) {
+            mainText = "SÜRE BİTTİ";
+            mainColor = '#ffcc00';
+        }
+
+        this.ctx.fillStyle = mainColor;
+        this.ctx.font = 'bold 90px "Cinzel", Georgia, serif';
+        this.ctx.shadowColor = mainColor;
+        this.ctx.shadowBlur = 25;
+        this.ctx.fillText(mainText, CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 - 30);
+
+        let winSubText = "BERABERE";
+        if (this.p1.hp > this.p2.hp) {
+            winSubText = `${this.p1.type.toUpperCase()} RAUNDU KAZANDI`;
+        } else if (this.p2.hp > this.p1.hp) {
+            winSubText = `${this.p2.type.toUpperCase()} RAUNDU KAZANDI`;
+        }
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = 'bold 24px "Cinzel", serif';
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillText(winSubText, CONFIG.VIRTUAL_WIDTH / 2, CONFIG.VIRTUAL_HEIGHT / 2 + 50);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Madde 10: 1 Saniyelik Büyü Sözü Söyleme Gecikmesi Süresini Dolduran ve Asıl Fırlatmayı Tetikleyen Fonksiyon
+     */
+    executePendingSpell(caster) {
+        const target = (caster === this.p1) ? this.p2 : this.p1;
+        
+        // Büyü okuma sırasında darbe alındıysa büyü iptal edilir (Interrupt)
+        if (caster.state === 'pain' || caster.state === 'stun' || caster.state === 'dead') {
+            caster.pendingSpellIndex = null;
+            return;
+        }
+
+        const index = caster.pendingSpellIndex;
+        caster.pendingSpellIndex = null; // Hazırlığı sıfırla
+
+        let dir = caster.facingRight ? 1 : -1;
+
+        if (caster.type === 'voldemort') {
+            if (index === 1) { // Yer hedefli Confringo patlaması tetiklenir (Zemine dikilir)
+                this.spells.triggerConfringo(target.x, caster);
+            }
+            else if (index === 3) { // Avada Kedavra ölüm ışını fırlatılır
+                let isHit = true;
+                if (target.isDucking) isHit = false;
+                if (target.y < 600 - 50) isHit = false; // Havaya sıçrayan hedefler kurtulur
+
+                const startX = caster.x + dir * 60;
+                const startY = caster.y - 210;
+                const endX = isHit ? target.x : (caster.facingRight ? 1280 : 0);
+                const endY = isHit ? target.y - 210 : caster.y - 210;
+
+                this.spells.triggerAvadaBeam(startX, startY, endX, endY);
+
+                if (isHit) {
+                    target.takeDamage(9999, true); // Bypass shield (Canı tamamen götürür)
+                }
+            }
+        } else { // Morgan
+            if (index === 2) { // Sectumsempra mermisi fırlatılır (Hız 12'ye düşürüldü)
+                this.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 12, caster, 'sectumsempra', this));
+            }
+            else if (index === 3) { // Expelliarmus ulti mermisi fırlatılır (Hız 14'ye düşürüldü)
+                this.spells.addProjectile(new Projectile(caster.x + dir * 60, caster.y - 210, dir * 14, caster, 'expelliarmus', this));
+            }
+        }
+    }
+}
+
+// Oyun motoru nesnesini başlat ve dışa aktar
+export const game = new GameOrchestrator();
+
+// --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
+// Madde 10: Büyü sözü söyleme duraklama ve MP3 ses çalma tetikleyicileri entegre edildi
+export function castSpell(caster, target, index) {
+    if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain' || caster.castDelayTimer > 0) return;
+
+    if (caster.type === 'voldemort') {
+        if (index === 1) { // Confringo
+            if (caster.mana >= 25) {
+                caster.mana -= 25;
+                caster.say("Confringo!");
+                caster.castDelayTimer = 1.0; // Madde 10: 1.0 saniye büyü sözü söyleme kilidi
+                caster.pendingSpellIndex = index;
+                game.audio.playConfringoCast(); // confringo.mp3 çalınır
+            }
+        } 
+        else if (index === 2) { // Crucio (Kanalizasyon büyüsü - gecikmesiz başlar)
+            if (caster.mana >= 30) {
+                caster.say("Crucio!");
+                caster.channelingSpell = 'crucio';
+                game.audio.playCrucioCast(); // crucio.mp3 çalınır
+            }
+        }
+        else if (index === 3) { // Avada Kedavra
+            if (caster.ultCharge >= 100) {
+                caster.ultCharge = 0;
+                caster.say("Avada Kedavra!");
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playAvadaKedavraCast(); // avadakedavra.mp3 çalınır
+            }
+        }
+    } 
+    else { // Morgan
+        if (index === 1) { // Incendio (Kanalizasyon - gecikmesiz)
+            if (caster.mana >= 20) {
+                caster.say("Incendio!");
+                caster.channelingSpell = 'incendio';
+                game.audio.startFlame(); // morganincendio.mp3 döngüsü başlar
+            }
+        }
+        else if (index === 2) { // Sectumsempra
+            if (caster.mana >= 20) {
+                caster.mana -= 20;
+                caster.say("Sectumsempra!");
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playMorganSectumsempraCast(); // morgansectumsempra.mp3 çalınır
+            }
+        }
+        else if (index === 3) { // Expelliarmus
+            if (caster.ultCharge >= 100) {
+                caster.ultCharge = 0;
+                caster.say("Expelliarmus!");
+                caster.castDelayTimer = 1.0; // 1.0 saniye gecikme
+                caster.pendingSpellIndex = index;
+                game.audio.playMorganExpelliarmusCast(); // morganexpelliarmus.mp3 çalınır
+            }
+        }
+    }
+}
+
+// Modül dışındaki input.js veya ai.js gibi scriptlerin window'dan bu fonksiyona erişebilmesini sağla
+window.castSpell = castSpell;
+
+// --- DÜELLOBAŞLATICI OYUNİÇİ ELEMANLAR (SEÇİM EKRANI VE BUTONLAR) ---
+const cardVold = document.getElementById('card-voldemort');
+const cardMorgan = document.getElementById('card-morgan');
+const startBtn = document.getElementById('start-btn');
+const overlay = document.getElementById('selection-overlay');
+
+let playerChar = 'voldemort'; // Varsayılan seçim
+
+if (cardVold && cardMorgan && startBtn && overlay) {
+    cardVold.addEventListener('click', () => {
+        playerChar = 'voldemort';
+        cardVold.classList.add('selected');
+        cardMorgan.classList.remove('selected');
+    });
+
+    cardMorgan.addEventListener('click', () => {
+        playerChar = 'morgan';
+        cardMorgan.classList.add('selected');
+        cardVold.classList.remove('selected');
+    });
+
+    startBtn.addEventListener('click', () => {
+        // Ses modülünü uyandır
+        game.audio.init();
+        game.audio.playTheme(); // maintheme.mp3 ana menü müziğini başlatır
+
+        // Düelloyu başlat
+        game.startDuel(playerChar);
+
+        // Mobil düğme isimlerini dinamik olarak ayarla
+        if (playerChar === 'voldemort') {
+            document.getElementById('btn-sp1').innerHTML = '<span>Confringo</span><small>K / 2</small>';
+            document.getElementById('btn-sp2').innerHTML = '<span>Crucio</span><small>L / 3</small>';
+        } else {
+            document.getElementById('btn-sp1').innerHTML = '<span>Incendio</span><small>K / 2</small>';
+            document.getElementById('btn-sp2').innerHTML = '<span>Sectum</span><small>L / 3</small>';
+        }
+
+        // Seçim ekranını kaldır
+        overlay.style.opacity = 0;
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 500);
+    });
+}
+
+// Madde 10: Sayfaya ilk etkileşimde ana tema müziğini güvenli bir şekilde uyandırır
+window.addEventListener('click', () => {
+    if (game.audio) {
+        game.audio.init();
+        game.audio.playTheme();
+    }
+}, { once: true });
+    
+    </script>
 </head>
 <body>
 
@@ -832,7 +4263,7 @@ canvas {
 </script>
 
 <!-- ES6 Standartlarında Ana JS Modülünün İçe Aktarılması -->
-<script type="module" src="src/main.js"></script>
+
 
 </body>
 </html>
