@@ -2162,6 +2162,11 @@ if (swirlImg && swirlImg.width > 0) {
         // Tarayıcının ana ses işlem birimi (AudioContext) yedek sentezleyici için
         this.ctx = null;
 
+        // Varsayılan ses seviyesi hafıza değişkenleri
+        this.musicVolume = 0.30;
+        this.sfxVolume = 0.70;
+        this.voiceVolume = 0.80;
+
         // Incendio alev akışı için procedural sentezleyici düğümleri
         this.fireSource = null;
         this.fireOsc = null;
