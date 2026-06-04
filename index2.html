@@ -3004,6 +3004,25 @@ const castSpellWrapper = (caster, target, index) => {
     constructor(game) {
         this.game = game;
         this.keys = {};
+
+        // TUŞ TAKIMI AYARLARI (İstediğiniz tuşları buraya yazarak değiştirebilirsiniz)
+        this.keyMap = {
+            MOVE_LEFT: ['a', 'arrowleft'],
+            MOVE_RIGHT: ['d', 'arrowright'],
+            JUMP: ['w', 'arrowup'],
+            DUCK: ['s', 'arrowdown'],
+            SHIELD: ['j', '1'],
+            SPELL1: ['k', '2'],
+            SPELL2: ['l', '3'],
+            ULTIMATE: ['i', '4']
+        };
+    }
+
+    // Belirtilen aksiyonun tuşuna basılıp basılmadığını kontrol eden yardımcı fonksiyon
+    isPressed(action) {
+        if (!this.keyMap[action]) return false;
+        return this.keyMap[action].some(k => this.keys[k]);
+    }
         this.actions = {
             LEFT: false,
             RIGHT: false,
