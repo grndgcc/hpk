@@ -3602,13 +3602,26 @@ class GameOrchestrator {
      * Karakter seçimi tamamlanıp düello başlatıldığında tetiklenir.
      * @param {string} selectedType - Seçilen karakter tipi ('voldemort' veya 'morgan')
      */
-    startDuel(selectedType) {
+startDuel(selectedType) {
         this.playerCharacterType = selectedType;
         this.currentRound = 1;
         this.p1Score = 0;
         this.p2Score = 0;
 
         this.initRound();
+
+        // Mobil düğme isimlerini dinamik olarak ayarla
+        const sp1 = document.getElementById('btn-sp1');
+        const sp2 = document.getElementById('btn-sp2');
+        if (sp1 && sp2) {
+            if (selectedType === 'voldemort') {
+                sp1.innerHTML = '<span>Confringo</span><small>K / 2</small>';
+                sp2.innerHTML = '<span>Crucio</span><small>L / 3</small>';
+            } else {
+                sp1.innerHTML = '<span>Incendio</span><small>K / 2</small>';
+                sp2.innerHTML = '<span>Sectum</span><small>L / 3</small>';
+            }
+        }
 
         this.currentState = GAME_STATES.PLAYING;
     }
