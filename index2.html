@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hogwarts Duel - Tekken Style Wizard Fighter</title>
+    
+    <!-- Harici Gelişmiş CSS Dosyasının Yüklenmesi -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Sadece Kılavuz Modalı ve Yardım Butonuna Özel Ekstra Tematik Stiller -->
+    <style>
+        #help-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(22, 26, 34, 0.8);
+            border: 1px solid #d4af37;
+            color: #d4af37;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        #help-btn:hover {
+            background: #d4af37;
+            color: #0c0f12;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+        }
+        #help-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(12, 15, 18, 0.98);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: linear-gradient(135deg, #161a22 0%, #0c0f12 100%);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 100%;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            font-size: 2.2rem;
+            color: #d4af37;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid #2d3545;
+            padding-bottom: 1rem;
+        }
+        .modal-section {
+            margin-bottom: 1.5rem;
+        }
+        .modal-section h3 {
+            color: #ffffff;
+            font-size: 1.2rem;
+            margin-bottom: 0.6rem;
+            border-left: 3px solid #d4af37;
+            padding-left: 10px;
+        }
+        .modal-section p, .modal-section li {
+            font-family: 'Arial', sans-serif;
+            font-size: 0.88rem;
+            color: #a0aec0;
+            line-height: 1.6;
+        }
+        .modal-section ul {
+            padding-left: 20px;
+            margin-top: 5px;
+        }
+        .control-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.85rem;
+        }
+        .control-table th, .control-table td {
+            border: 1px solid #2d3545;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .control-table th {
+            background: #232a38;
+            color: #fff;
+            font-family: 'Cinzel', serif;
+            font-size: 0.8rem;
+        }
+        .control-table td strong {
+            color: #d4af37;
+        }
+        #close-help-btn {
+            display: block;
+            margin: 1.5rem auto 0 auto;
+            background: #fff;
+            color: #0c0f12;
+            border: none;
+            padding: 10px 24px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #close-help-btn:hover {
+            background: #d4af37;
+            transform: scale(1.03);
+        }
+
+        /* 1. Seçim ekranının Canvas'ın altında kalmasını engellemek için */
+#selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10; /* Canvas'ın üzerinde, kılavuz modalının altında yer alır */
+    background: rgba(12, 15, 18, 0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 2. Kartların seçilebilir olduğunu hissettiren imleç */
+.char-card {
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* 3. Tıklanan kartın etrafında belirecek olan altın sarısı parlama efekti */
+.char-card.selected {
+    border-color: #d4af37;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+    transform: scale(1.03);
+}
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    
+    <!-- Nasıl Oynanır / Kılavuz Butonu -->
+    <button id="help-btn">Nasıl Oynanır?</button>
+
+    <!-- Nasıl Oynanır Modalı (Yardım Penceresi) -->
+    <div id="help-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">DÜELLO KILAVUZU</h2>
+            
+            <div class="modal-section">
+                <h3>Genel Kurallar</h3>
+                <p>
+                    Hogwarts Düellosu, delta-time tabanlı fizik simülasyonuna sahip 2D dövüş oyunudur. Oyundaki amacınız,
+                    zorlu taktiksel yapay zekaya (AI) karşı canınız tükenmeden önce 2 raunt kazanmaktır. Oyunda <strong>Can kazanma mekaniği yoktur</strong>.
+                    Bu yüzden attığınız her adımda savunma zamanlamanız kritik önem taşır.
+                </p>
+            </div>
+
+            <div class="modal-section">
+                <h3>Savaş Kontrolleri (PC)</h3>
+                <table class="control-table">
+                    <thead>
+                        <tr>
+                            <th>Eylem</th>
+                            <th>Klavye Tuşu</th>
+                            <th>Açıklama</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Sola Git</strong></td>
+                            <td>A veya Sol Ok</td>
+                            <td>Karakteri sola doğru hareket ettirir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sağa Git</strong></td>
+                            <td>D veya Sağ Ok</td>
+                            <td>Karakteri sağa doğru hareket ettirir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Zıpla (Kaçış)</strong></td>
+                            <td>W veya Yukarı Ok</td>
+                            <td>Projektillerin ve yer patlamalarının üzerinden atlamanızı sağlar.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Eğil (AK Kaçışı)</strong></td>
+                            <td>S veya Aşağı Ok</td>
+                            <td>Hurtbox'ınızı daraltarak Avada Kedavra veya hızlı şimşeklerin üzerinden geçmesini sağlar.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Protego (Kalkan)</strong></td>
+                            <td>J veya 1 (Basılı Tutulur)</td>
+                            <td>Korunabilir büyüleri hasarsız engeller. Saniyede 36 mana eritir.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>1. Büyü</strong></td>
+                            <td>K veya 2</td>
+                            <td><strong>Voldemort:</strong> Confringo (Patlama) | <strong>Morgan:</strong> Incendio (Alev - Basılı Tutulur)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Büyü</strong></td>
+                            <td>L veya 3</td>
+                            <td><strong>Voldemort:</strong> Crucio (Basılı Tutulur) | <strong>Morgan:</strong> Sectumsempra (Sinsi Kesiş)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>ULTIMATE (Ulti)</strong></td>
+                            <td>I veya 4</td>
+                            <td>%100 Ulti yükünde kullanılabilir. <strong>Voldemort:</strong> Avada Kedavra | <strong>Morgan:</strong> Expelliarmus</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-section">
+                <h3>Gelişmiş Dövüş Taktikleri</h3>
+                <ul>
+                    <li><strong>Kalkan Cezalandırma (Shield Baiting):</strong> Yapay zeka kalkan açtığında Voldemort ile kalkanı yok sayan <em>Confringo</em> fırlatın. Morgan ile oynuyorsanız, kalkanı açık tutmanın manayı hızla erittiğini unutmayın; rakibe <em>Incendio</em> püskürterek kalkanını kaldırmaya zorlayın.</li>
+                    <li><strong>Sinsi Sectumsempra:</strong> Sectumsempra büyüsü fırlatıldığında ilk 420 piksel boyunca neredeyse tamamen görünmez uçar. Yapay zekanın Protego zamanlamasını yanıltmak için bu mesafeyi iyi ayarlayın.</li>
+                    <li><strong>Avada Kedavra'dan Kurtulma:</strong> Voldemort'un nihai yeşil şimşeği kalkanla engellenemez. Ancak tam atıldığı saniyede eğilir (S/Aşağı) veya havada zıplıyorsanız (W/Yukarı), şimşek size isabet etmez.</li>
+                    <li><strong>Mana Koruma Kültürü:</strong> Protego'yu sürekli açık tutmak mananızı anında bitirir. Sadece rakip projektil asadan çıkıp size yaklaşırken (çarpmaya yakın) kalkanı açıp kapatarak (*perfect block*) mananızı koruyun.</li>
+                </ul>
+            </div>
+
+            <button id="close-help-btn">Savaş Alanına Dön</button>
+        </div>
+    </div>
+
+    <!-- Karakter Seçim Ekranı (Selection Overlay) -->
+    <div id="selection-overlay">
+        <h1 id="selection-title">HOGWARTS DUELLOSU</h1>
+        <div class="char-container">
+            
+            <!-- Voldemort Seçim Kartı -->
+            <div class="char-card" id="card-voldemort">
+                <!-- voldemortstand.png ana dizinde -->
+                <img src="voldemortstand.png" alt="Voldemort">
+                <div class="char-name">Voldemort</div>
+                <div class="char-desc">
+                    <strong>Büyüler:</strong><br>
+                    <span class="spell-badge">Protego</span>
+                    <span class="spell-badge">Confringo</span>
+                    <span class="spell-badge">Crucio</span>
+                    <span class="spell-badge" style="background: var(--voldemort-green);">Avada Kedavra (Ult)</span>
+                    <br><br>
+                    Yüksek mana tüketen yıkıcı büyülere sahiptir. Crucio ile rakibi acı içinde dondururken, engellenemez yeşil ölüm lanetiyle anında saf dışı bırakabilir.
+                </div>
+            </div>
+
+            <!-- Morgan Seçim Kartı -->
+            <div class="char-card" id="card-morgan">
+                <!-- morganstand.png ana dizinde -->
+                <img src="morganstand.png" alt="Morgan">
+                <div class="char-name">Morgan</div>
+                <div class="char-desc">
+                    <strong>Büyüler:</strong><br>
+                    <span class="spell-badge">Protego</span>
+                    <span class="spell-badge">Incendio</span>
+                    <span class="spell-badge">Sectumsempra</span>
+                    <span class="spell-badge" style="background: var(--morgan-violet);">Expelliarmus (Ult)</span>
+                    <br><br>
+                    Hızlı ve sinsi büyülere odaklanır. Sectumsempra ilk başta havada görünmez süzülür. Ultisi çok hızlı ilerler ve rakibi 3.5 saniye dondurur.
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- Düelloya Başlatıcı Buton -->
+        <button id="start-btn">DÜELLOYA BAŞLA</button>
+    </div>
+
+    <!-- Ana Çizim Ekranı (Canvas) -->
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <!-- Oyun Bitti Ekranı (Game Over Screen) -->
+    <div id="game-over-screen">
+        <h2 id="game-over-text">DÜELLO BİTTİ</h2>
+        <button id="restart-btn">Yeniden Oyna</button>
+    </div>
+
+    <!-- Mobil Virtual Gamepad Ekranı (Dokunmatik ekranlarda JS tarafından açılır) -->
+    <div id="mobile-controls">
+        <div class="dpad">
+            <div class="btn-ctrl btn-up" id="btn-up">▲</div>
+            <div class="btn-ctrl btn-left" id="btn-left">◀</div>
+            <div class="btn-ctrl btn-right" id="btn-right">▶</div>
+            <div class="btn-ctrl btn-down" id="btn-down">▼</div>
+        </div>
+        <div class="action-buttons">
+            <div class="btn-action" id="btn-sp1"><span>Büyü 1</span><small>K / 2</small></div>
+            <div class="btn-action" id="btn-sp2"><span>Büyü 2</span><small>L / 3</small></div>
+            <div class="btn-action" id="btn-prot"><span>Protego</span><small>J / 1</small></div>
+            <div class="btn-action btn-ult" id="btn-ult"><span>ULT</span><small>I / 4</small></div>
+        </div>
+    </div>
+</div>
+
+<!-- Kılavuz Modal Açma/Kapama Scripti -->
+<script>
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+
+    helpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'flex';
+    });
+
+    closeHelpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'none';
+    });
+</script>
+
+<!-- ES6 Standartlarında Ana JS Modülünün İçe Aktarılması -->
+<script type="module" src="src/main.js"></script>
+
+</body>
+</html>
