@@ -3719,14 +3719,46 @@ class GameOrchestrator {
         });
 
         // Oyuncu girdilerini işle
-        this.input.updatePlayerMovement(this.p1);
+      // Oyuncu girdilerini işle (Çok oyunculuda Guest kendi karakterini yönlendirir)
+        if (this.isMultiplayer) {
+            const localPlayer = (myRole === 'host') ? this.p1 : this.p2;
+            this.input.updatePlayerMovement(localPlayer);
+        } else {
+            this.input.updatePlayerMovement(this.p1);
+        }
 
         // Karakterleri ve fizik konumlarını güncelle
         this.p1.update(dt, this.p2);
         this.p2.update(dt, this.p1);
 
-        // Yapay Zekayı (AI) güncelle
-        this.ai.update(dt, this.p2, this.p1);
+        // Yapay Zekayı (AI) güncelle (Sadece tek oyunculu modda aktif olur)
+        if (!this.isMultiplayer) {
+            this.ai.update(dt, this.p2, this.p1);
+        }
+
+        // Çok oyunculu modda kendi karakterimizin fiziksel durumunu karşıya gönderelim
+        if (this.isMultiplayer && conn && conn.open) {
+            const localChar = (myRole === 'host') ? this.p1 : this.p2;
+            conn.send({
+                type: 'state-sync',
+                x: localChar.x,
+                y: localChar.y,
+                vx: localChar.vx,
+                vy: localChar.vy,
+                hp: localChar.hp,
+                mana: localChar.mana,
+                ultCharge: localChar.ultCharge,
+                state: localChar.state,
+                shieldActive: localChar.shieldActive,
+                isDucking: localChar.isDucking,
+                isGrounded: localChar.isGrounded,
+                facingRight: localChar.facingRight,
+                channelingSpell: localChar.channelingSpell,
+                walkCycleIndex: localChar.walkCycleIndex,
+                castDelayTimer: localChar.castDelayTimer,
+                castTimer: localChar.castTimer
+            });
+        }
 
         // Büyüleri, mermileri ve sürekli alev menzillerini güncelle
         this.spells.update(dt, this.p1, this.p2);
