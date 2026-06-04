@@ -1037,7 +1037,7 @@ class FloatingText {
         }
 
         const targetH = target.isDucking ? 150 : 280;
-        const targetW = target.width;
+        const targetW = target.width || 80;
         const targetX = target.x - targetW / 2;
         const targetY = target.y - targetH;
 
