@@ -878,7 +878,6 @@ export class ParticleFactory {
  * - Expelliarmus mermisi için kırmızı kırıklı şimşek kuyrukları entegre edildi.
  */
 
-import { Engine, Vector2, ParticleFactory, particles, EngineParticle } from './engine.js';
 
 /**
  * Ekranda süzülerek yükselen arcade tarzı hasar ve durum yazıları sınıfı.
@@ -1593,7 +1592,7 @@ if (swirlImg && swirlImg.width > 0) {
  * - Can değerleri 250 seviyesine dengelendi ve pasif ulti dolum sistemi kuruldu.
  */
 
-import { Engine, ParticleFactory } from './engine.js';
+
 
 /**
  * Karakterlerin kafalarının üzerinde beliren konuşma/büyü kutusu sınıfı.
@@ -2564,8 +2563,7 @@ export class AudioController {
  * - Karakter tipine göre özel savaş mesafesi (spacing) yapay zekası yazıldı.
  */
 
-import { Engine, Vector2 } from './engine.js';
-import { ConfringoArea } from './spell.js';
+
 
 class DelayedAction {
     /**
@@ -2906,7 +2904,7 @@ export class AIManager {
  * ============================================================================
  */
 
-import { Engine } from './engine.js';
+
 
 const castSpellWrapper = (caster, target, index) => {
     const globalCast = window.castSpell;
@@ -3216,13 +3214,7 @@ export class InputHandler {
  * ekran sığdırma/ölçeklendirme matematiklerini içermektedir.
  */
 
-// Alt Modüllerin İçe Aktarılması
-import { Engine, particles } from './engine.js';
-import { InputHandler } from './input.js';
-import { Character } from './character.js';
-import { SpellManager, Projectile } from './spell.js';
-import { AIManager } from './ai.js';
-import { AudioController } from './audio.js';
+
 
 /**
  * Oyun Ayarları ve Sabitler Konfigürasyonu
