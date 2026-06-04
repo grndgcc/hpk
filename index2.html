@@ -4191,12 +4191,11 @@ window.castSpell = castSpell;
 // --- DÜELLOBAŞLATICI OYUNİÇİ ELEMANLAR (SEÇİM EKRANI VE BUTONLAR) ---
 const cardVold = document.getElementById('card-voldemort');
 const cardMorgan = document.getElementById('card-morgan');
-const startBtn = document.getElementById('start-btn');
 const overlay = document.getElementById('selection-overlay');
 
 let playerChar = 'voldemort'; // Varsayılan seçim
 
-if (cardVold && cardMorgan && startBtn && overlay) {
+if (cardVold && cardMorgan && overlay) {
     cardVold.addEventListener('click', () => {
         playerChar = 'voldemort';
         cardVold.classList.add('selected');
@@ -4207,30 +4206,6 @@ if (cardVold && cardMorgan && startBtn && overlay) {
         playerChar = 'morgan';
         cardMorgan.classList.add('selected');
         cardVold.classList.remove('selected');
-    });
-
-    startBtn.addEventListener('click', () => {
-        // Ses modülünü uyandır
-        game.audio.init();
-        game.audio.playTheme(); // maintheme.mp3 ana menü müziğini başlatır
-
-        // Düelloyu başlat
-        game.startDuel(playerChar);
-
-        // Mobil düğme isimlerini dinamik olarak ayarla
-        if (playerChar === 'voldemort') {
-            document.getElementById('btn-sp1').innerHTML = '<span>Confringo</span><small>K / 2</small>';
-            document.getElementById('btn-sp2').innerHTML = '<span>Crucio</span><small>L / 3</small>';
-        } else {
-            document.getElementById('btn-sp1').innerHTML = '<span>Incendio</span><small>K / 2</small>';
-            document.getElementById('btn-sp2').innerHTML = '<span>Sectum</span><small>L / 3</small>';
-        }
-
-        // Seçim ekranını kaldır
-        overlay.style.opacity = 0;
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 500);
     });
 }
 
@@ -4251,7 +4226,8 @@ const modeSelection = document.getElementById('mode-selection');
 const startSingleBtn = document.getElementById('start-single-btn');
 const multiplayerMenuBtn = document.getElementById('multiplayer-menu-btn');
 const lobbyPanel = document.getElementById('lobby-panel');
-const lobbyChoices = document.getElementById('lobby-choices');
+const lobbyChoices = document.getElementById('lobby-choices
+                                             
 const hostRoomBtn = document.getElementById('host-room-btn');
 const joinMenuBtn = document.getElementById('join-menu-btn');
 const hostWaitScreen = document.getElementById('host-wait-screen');
