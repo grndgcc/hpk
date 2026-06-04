@@ -3265,8 +3265,8 @@ const castSpellWrapper = (caster, target, index) => {
 
         player.vx = 0;
 
-        const goLeft = this.keys['a'] || this.keys['arrowleft'] || this.actions.LEFT;
-        const goRight = this.keys['d'] || this.keys['arrowright'] || this.actions.RIGHT;
+       const goLeft = this.isPressed('MOVE_LEFT') || this.actions.LEFT;
+        const goRight = this.isPressed('MOVE_RIGHT') || this.actions.RIGHT;
 
         if (goLeft) {
             player.vx = -5;
@@ -3275,16 +3275,16 @@ const castSpellWrapper = (caster, target, index) => {
             player.vx = 5;
         }
 
-        const doJump = this.keys['w'] || this.keys['arrowup'] || this.actions.JUMP;
+        const doJump = this.isPressed('JUMP') || this.actions.JUMP;
         if (doJump && player.isGrounded) {
             player.vy = -15;
             player.isGrounded = false;
         }
 
-        const doDuck = this.keys['s'] || this.keys['arrowdown'] || this.actions.DUCK;
+        const doDuck = this.isPressed('DUCK') || this.actions.DUCK;
         player.isDucking = doDuck;
 
-        const holdShield = this.keys['j'] || this.keys['1'] || this.actions.PROTEGO;
+        const holdShield = this.isPressed('SHIELD') || this.actions.PROTEGO;
         if (holdShield) {
             if (player.mana > 5) {
                 player.shieldActive = true;
