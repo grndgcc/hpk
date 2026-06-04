@@ -4164,6 +4164,225 @@ window.addEventListener('click', () => {
         game.audio.playTheme();
     }
 }, { once: true });
+
+        // ============================================================================
+// HOGWARTS DUEL - P2P MULTIPLAYER LOBBY SYSTEM (PEERJS ENTEGRASYONU)
+// ============================================================================
+
+// 1. Arayüz Elemanlarının Seçilmesi
+const modeSelection = document.getElementById('mode-selection');
+const startSingleBtn = document.getElementById('start-single-btn');
+const multiplayerMenuBtn = document.getElementById('multiplayer-menu-btn');
+const lobbyPanel = document.getElementById('lobby-panel');
+const lobbyChoices = document.getElementById('lobby-choices');
+const hostRoomBtn = document.getElementById('host-room-btn');
+const joinMenuBtn = document.getElementById('join-menu-btn');
+const hostWaitScreen = document.getElementById('host-wait-screen');
+const roomCodeDisplay = document.getElementById('room-code-display');
+const joinInputScreen = document.getElementById('join-input-screen');
+const joinCodeInput = document.getElementById('join-code-input');
+const connectRoomBtn = document.getElementById('connect-room-btn');
+const matchReadyScreen = document.getElementById('match-ready-screen');
+const playerStatusP1 = document.getElementById('player-status-p1');
+const playerStatusP2 = document.getElementById('player-status-p2');
+const lobbyReadyBtn = document.getElementById('lobby-ready-btn');
+const backToModesBtn = document.getElementById('back-to-modes-btn');
+
+// Lobi Değişkenleri
+let peer = null;            // WebRTC Bağlantı Nesnesi
+let conn = null;            // Oyuncular Arasındaki Aktif Veri Kanalı
+let myRole = null;          // 'host' veya 'guest'
+let isReadyLocal = false;    // Kendi hazır durumumuz
+let isReadyOpponent = false; // Rakibin hazır durumu
+let roomCode = null;
+
+// A. Tek Oyunculu Mod Butonu (AI Karşılaşması)
+if (startSingleBtn) {
+    startSingleBtn.addEventListener('click', () => {
+        game.audio.init();
+        game.audio.playTheme();
+        game.startDuel(playerChar);
+        game.isMultiplayer = false; // AI aktif kalır
+
+        overlay.style.opacity = 0;
+        setTimeout(() => overlay.style.display = 'none', 500);
+    });
+}
+
+// B. Çok Oyunculu Panel Geçişi
+if (multiplayerMenuBtn) {
+    multiplayerMenuBtn.addEventListener('click', () => {
+        modeSelection.style.display = 'none';
+        lobbyPanel.style.display = 'flex';
+    });
+}
+
+// C. Oda Kurma (Host) İşlemi
+if (hostRoomBtn) {
+    hostRoomBtn.addEventListener('click', () => {
+        myRole = 'host';
+        lobbyChoices.style.display = 'none';
+        hostWaitScreen.style.display = 'block';
+
+        // 4 haneli benzersiz bir oda kodu üretilir
+        roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+        roomCodeDisplay.innerText = roomCode;
+
+        // PeerJS nesnesini başlatalım (ID çakışmasını önlemek için ön ek eklenmiştir)
+        peer = new Peer('HDUEL-' + roomCode);
+
+        peer.on('open', (id) => {
+            console.log('Lobi açıldı. Oda Kimliği:', id);
+        });
+
+        // Diğer oyuncu (Guest) bu odaya bağlandığında tetiklenir
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupConnectionListeners();
+            
+            // Eşleşme ekranına geçiş yap
+            hostWaitScreen.style.display = 'none';
+            matchReadyScreen.style.display = 'flex';
+        });
+
+        peer.on('error', (err) => {
+            console.error('Lobi hatası:', err);
+            alert("Bağlantı sunucusuna erişilemedi. Lütfen tekrar deneyin.");
+            resetLobbyUI();
+        });
+    });
+}
+
+// D. Odaya Katılma Panel Geçişi (Guest)
+if (joinMenuBtn) {
+    joinMenuBtn.addEventListener('click', () => {
+        myRole = 'guest';
+        lobbyChoices.style.display = 'none';
+        joinInputScreen.style.display = 'block';
+    });
+}
+
+// E. Kod Yazıp Odaya Bağlanma (Guest)
+if (connectRoomBtn) {
+    connectRoomBtn.addEventListener('click', () => {
+        const targetCode = joinCodeInput.value.trim();
+        if (targetCode.length === 4) {
+            roomCode = targetCode;
+            peer = new Peer(); // Guest için rastgele bir Peer ID oluşturur
+
+            peer.on('open', () => {
+                // Host'un oluşturduğu odaya (Peer ID) bağlanıyoruz
+                conn = peer.connect('HDUEL-' + targetCode);
+                setupConnectionListeners();
+            });
+
+            peer.on('error', (err) => {
+                console.error('Katılma hatası:', err);
+                alert("Oda bulunamadı veya bağlantı reddedildi.");
+                resetLobbyUI();
+            });
+        } else {
+            alert("Lütfen 4 haneli geçerli bir kod girin.");
+        }
+    });
+}
+
+// F. P2P Bağlantı Veri Dinleyicileri
+function setupConnectionListeners() {
+    // Bağlantı başarılı şekilde açıldığında (Özellikle Guest tarafı için)
+    conn.on('open', () => {
+        joinInputScreen.style.display = 'none';
+        matchReadyScreen.style.display = 'flex';
+    });
+
+    // Karşı taraftan veri paketi geldiğinde
+    conn.on('data', (data) => {
+        if (data.type === 'ready-status') {
+            isReadyOpponent = data.isReady;
+            updateReadyVisuals();
+
+            // Her iki oyuncu da hazırsa oyunu başlat
+            if (isReadyLocal && isReadyOpponent) {
+                startGamePlay();
+            }
+        }
+    });
+
+    // Rakibin sekmesini kapattığı veya çıktığı durum
+    conn.on('close', () => {
+        alert("Rakibin bağlantısı kesildi. Menüye dönülüyor.");
+        location.reload();
+    });
+}
+
+// G. Hazır (Ready) Butonu Tıklaması
+if (lobbyReadyBtn) {
+    lobbyReadyBtn.addEventListener('click', () => {
+        isReadyLocal = !isReadyLocal;
+        
+        // Butonun görsel durumunu güncelle
+        if (isReadyLocal) {
+            lobbyReadyBtn.innerText = "HAZIRLIK İPTAL";
+            lobbyReadyBtn.style.background = "#ff3333";
+        } else {
+            lobbyReadyBtn.innerText = "HAZIR (READY)";
+            lobbyReadyBtn.style.background = "";
+        }
+
+        // Karşı taraftaki rakibe kendi hazır durumumuzu gönderelim
+        if (conn) {
+            conn.send({ type: 'ready-status', isReady: isReadyLocal });
+        }
+
+        updateReadyVisuals();
+
+        // İki oyuncu da hazırsa oyunu başlat
+        if (isReadyLocal && isReadyOpponent) {
+            startGamePlay();
+        }
+    });
+}
+
+// H. Hazır Durumu Gösterge Kartlarını Güncelleme
+function updateReadyVisuals() {
+    playerStatusP1.innerText = isReadyLocal ? "SEN: HAZIR" : "SEN: HAZIR DEĞİL";
+    playerStatusP1.className = isReadyLocal ? "ready-badge ready-active" : "ready-badge";
+
+    playerStatusP2.innerText = isReadyOpponent ? "RAKİP: HAZIR" : "RAKİP: HAZIR DEĞİL";
+    playerStatusP2.className = isReadyOpponent ? "ready-badge ready-active" : "ready-badge";
+}
+
+// I. Oyunu Başlatma Fonksiyonu
+function startGamePlay() {
+    game.audio.init();
+    game.audio.playTheme();
+    
+    game.isMultiplayer = true; // Çok oyunculu modu aktifleştirir (AI devre dışı kalır)
+    game.startDuel(playerChar);
+
+    overlay.style.opacity = 0;
+    setTimeout(() => overlay.style.display = 'none', 500);
+}
+
+// J. Lobiyi ve Bağlantıyı Sıfırlama
+function resetLobbyUI() {
+    if (peer) peer.destroy();
+    lobbyPanel.style.display = 'none';
+    hostWaitScreen.style.display = 'none';
+    joinInputScreen.style.display = 'none';
+    matchReadyScreen.style.display = 'none';
+    lobbyChoices.style.display = 'flex';
+    modeSelection.style.display = 'flex';
+    isReadyLocal = false;
+    isReadyOpponent = false;
+}
+
+// K. Lobiden Çıkma / Geri Dönme Butonu
+if (backToModesBtn) {
+    backToModesBtn.addEventListener('click', () => {
+        resetLobbyUI();
+    });
+}
     // GÜNCELLEME: Ses ayar sürgüleri (sliders) için anlık dinleyici köprüsü
 const musicSlider = document.getElementById('vol-music');
 const sfxSlider = document.getElementById('vol-sfx');
