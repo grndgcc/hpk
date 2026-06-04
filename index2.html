@@ -1836,13 +1836,23 @@ if (swirlImg && swirlImg.width > 0) {
         }
 
         // 1. Sersemletilme (STUN - Expelliarmus) Durum Kontrolü
+    // 1. Sersemletilme (STUN - Expelliarmus) Durum Kontrolü
         if (this.stunTimer > 0) {
             this.stunTimer -= dt;
             this.state = 'stun';
-            this.vx = 0;
+            this.vx = 0; // GÜNCELLEME: Sersemleme anında yatay hızı tamamen sıfırla (kaymayı önler)
             this.shieldActive = false;
             this.castDelayTimer = 0;
             this.stopChannel();
+
+            // Kafanın üzerinde dönen sersemleme kıvılcımları saç
+            if (Math.random() < 0.25) {
+                ParticleFactory.spawnStunSparkles(this.x + (Math.random() * 40 - 20), this.y - this.height - 10, 2);
+            }
+        } else if (this.state === 'stun') {
+            // GÜNCELLEME: Sersemleme süresi bittiğinde durumu rölantiye (idle) geri döndürerek kilidi açar
+            this.state = 'idle';
+        }
 
             // Kafanın üzerinde dönen sersemleme kıvılcımları saç
             if (Math.random() < 0.25) {
