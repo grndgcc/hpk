@@ -658,9 +658,9 @@ canvas {
     </style>
 
     <script type="module">  
-    export const particles = [];
+     const particles = [];
 
-export class Vector2 {
+ class Vector2 {
     constructor(x = 0, y = 0) {
         this.x = x;
         this.y = y;
@@ -677,7 +677,7 @@ export class Vector2 {
     }
 }
 
-export class Engine {
+ class Engine {
     static clamp(val, min, max) {
         return Math.max(min, Math.min(max, val));
     }
@@ -757,7 +757,7 @@ export class Engine {
     }
 }
 
-export class EngineParticle {
+ class EngineParticle {
     constructor(x, y, colorRGB, endColorRGB, size, vx, vy, life = 1.0, gravity = 0) {
         this.x = x;
         this.y = y;
@@ -793,7 +793,7 @@ export class EngineParticle {
     }
 }
 
-export class ParticleFactory {
+ class ParticleFactory {
     static spawnFireExplosion(x, y, count = 20) {
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
@@ -914,7 +914,7 @@ class FloatingText {
 /**
  * Yer Hedefli ve 1.2 Saniye Gecikmeli Confringo Alan Etkisi Sınıfı
  */
-export class ConfringoArea {
+ class ConfringoArea {
     /**
      * @param {number} targetX - Rakibin büyü yapıldığı andaki X koordinatı
      * @param {object} game - GameOrchestrator referansı
@@ -999,7 +999,7 @@ export class ConfringoArea {
 /**
  * Uçuş Yolculuğu Yapan Projektil Büyüler Sınıfı
  */
-export class Projectile {
+ class Projectile {
     /**
      * @param {number} x - Başlangıç X koordinatı
      * @param {number} y - Başlangıç Y koordinatı
@@ -1308,7 +1308,7 @@ class AvadaKedavraBeam {
 /**
  * Tüm Büyüleri, Alan Efektlerini ve Yazıları Yöneten Sınıf (Orchestrator Module)
  */
-export class SpellManager {
+ class SpellManager {
     constructor(game) {
         this.game = game;
         this.projectiles = [];
@@ -1598,7 +1598,7 @@ if (swirlImg && swirlImg.width > 0) {
  * Karakterlerin kafalarının üzerinde beliren konuşma/büyü kutusu sınıfı.
  * Büyücü bir büyü fırlattığında büyü sözünü söylemesi için ekranda çizilir.
  */
-export class SpeechBubble {
+ class SpeechBubble {
     /**
      * @param {string} text - Balonun içinde yazacak olan büyü sözü
      * @param {number} x - Karakterin X koordinatı
@@ -1675,7 +1675,7 @@ export class SpeechBubble {
 /**
  * Ana Karakter Yönetim Sınıfı (Büyücüler)
  */
-export class Character {
+ class Character {
     /**
      * @param {string} type - 'voldemort' veya 'morgan'
      * @param {boolean} isPlayer - Oyuncu mu yoksa yapay zeka mı?
@@ -2086,7 +2086,7 @@ export class Character {
  * - Tüm büyüler, kalkanlar ve Morgan'ın acı çığlığı MP3 dosyalarıyla eşleştirildi.
  */
 
-export class AudioController {
+ class AudioController {
     constructor() {
         // Tarayıcının ana ses işlem birimi (AudioContext) yedek sentezleyici için
         this.ctx = null;
@@ -2576,7 +2576,7 @@ class DelayedAction {
     }
 }
 
-export class AIManager {
+ class AIManager {
     constructor(game) {
         this.game = game;
 
@@ -2913,7 +2913,7 @@ const castSpellWrapper = (caster, target, index) => {
     }
 };
 
-export class InputHandler {
+ class InputHandler {
     constructor(game) {
         this.game = game;
         this.keys = {};
@@ -3958,11 +3958,11 @@ class GameOrchestrator {
 }
 
 // Oyun motoru nesnesini başlat ve dışa aktar
-export const game = new GameOrchestrator();
+ const game = new GameOrchestrator();
 
 // --- BÜYÜ TETİKLEYİCİSİ KÖPRÜSÜ (Büyülerin çalışması için) ---
 // Madde 10: Büyü sözü söyleme duraklama ve MP3 ses çalma tetikleyicileri entegre edildi
-export function castSpell(caster, target, index) {
+ function castSpell(caster, target, index) {
     if (caster.state === 'dead' || caster.state === 'stun' || caster.state === 'pain' || caster.castDelayTimer > 0) return;
 
     if (caster.type === 'voldemort') {
