@@ -3592,17 +3592,27 @@ class GameOrchestrator {
     /**
      * Belirli bir raundu tamamen sıfırlar ve konumlandırır.
      */
-    initRound() {
-        this.audio.stopFlame();
+   initRound() {
+            this.audio.stopFlame();
 
-        // Karakter Nesnelerini Oluştur
-        if (this.playerCharacterType === 'voldemort') {
-            this.p1 = new Character('voldemort', true, 200, this, CONFIG);
-            this.p2 = new Character('morgan', false, 1080, this, CONFIG);
-        } else {
-            this.p1 = new Character('morgan', true, 200, this, CONFIG);
-            this.p2 = new Character('voldemort', false, 1080, this, CONFIG);
-        }
+            // Karakter Nesnelerini Oluştur
+            if (this.isMultiplayer) {
+                const hostChar = (myRole === 'host') ? this.playerCharacterType : opponentChar;
+                const guestChar = (myRole === 'host') ? opponentChar : this.playerCharacterType;
+
+                // Host daima P1 (Sol tarafta), Guest daima P2 (Sağ tarafta) olur
+                // isPlayer parametresi sadece kontrolü elinde tutan tarafta true olur
+                this.p1 = new Character(hostChar, (myRole === 'host'), 200, this, CONFIG);
+                this.p2 = new Character(guestChar, (myRole === 'guest'), 1080, this, CONFIG);
+            } else {
+                if (this.playerCharacterType === 'voldemort') {
+                    this.p1 = new Character('voldemort', true, 200, this, CONFIG);
+                    this.p2 = new Character('morgan', false, 1080, this, CONFIG);
+                } else {
+                    this.p1 = new Character('morgan', true, 200, this, CONFIG);
+                    this.p2 = new Character('voldemort', false, 1080, this, CONFIG);
+                }
+            }
 
         // HUD Gösterge Değerlerini Can Tabanına (250) Göre Sıfırla
         this.p1DisplayHp = 250;
