@@ -4267,10 +4267,10 @@ let roomCode = null;
 if (startSingleBtn) {
     startSingleBtn.addEventListener('click', () => {
         game.audio.init();
-        game.audio.updateVolumes(); // Sayfa ilk açıldığında sürgülerin değerlerini oku
+        game.audio.updateVolumes(); 
         game.audio.playTheme();
-        game.startDuel(playerChar);
-        game.isMultiplayer = false; // AI aktif kalır
+        game.startDuel(playerChar); // Seçtiğiniz karakteri buraya aktarır
+        game.isMultiplayer = false; 
 
         overlay.style.opacity = 0;
         setTimeout(() => overlay.style.display = 'none', 500);
