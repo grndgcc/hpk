@@ -3030,13 +3030,7 @@ const castSpellWrapper = (caster, target, index) => {
             SPELL2: ['l', '3'],
             ULTIMATE: ['i', '4']
         };
-    }
 
-    // Belirtilen aksiyonun tuşuna basılıp basılmadığını kontrol eden yardımcı fonksiyon
-    isPressed(action) {
-        if (!this.keyMap[action]) return false;
-        return this.keyMap[action].some(k => this.keys[k]);
-    }
         this.actions = {
             LEFT: false,
             RIGHT: false,
@@ -3052,6 +3046,12 @@ const castSpellWrapper = (caster, target, index) => {
         this.touchActive = false;
         this.gamepadConnected = false;
         this.activeGamepadIndex = null;
+    }
+
+    // Belirtilen aksiyonun tuşuna basılıp basılmadığını kontrol eden yardımcı fonksiyon
+    isPressed(action) {
+        if (!this.keyMap[action]) return false;
+        return this.keyMap[action].some(k => this.keys[k]);
     }
 
     bindEvents() {
@@ -4238,8 +4238,7 @@ const modeSelection = document.getElementById('mode-selection');
 const startSingleBtn = document.getElementById('start-single-btn');
 const multiplayerMenuBtn = document.getElementById('multiplayer-menu-btn');
 const lobbyPanel = document.getElementById('lobby-panel');
-const lobbyChoices = document.getElementById('lobby-choices
-                                             
+const lobbyChoices = document.getElementById('lobby-choices');
 const hostRoomBtn = document.getElementById('host-room-btn');
 const joinMenuBtn = document.getElementById('join-menu-btn');
 const hostWaitScreen = document.getElementById('host-wait-screen');
