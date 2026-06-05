@@ -715,6 +715,302 @@ canvas {
     border-color: #00ff66 !important;
     color: #00ff66 !important;
 }
+    
+/* ============================================================================
+   6. MENÜ, SES VE DUYARLI DÜZEN İYİLEŞTİRMELERİ
+   ============================================================================ */
+
+#selection-overlay {
+    justify-content: flex-start;
+    padding: clamp(16px, 3vh, 40px) clamp(12px, 3vw, 28px) 24px;
+    overflow-y: auto;
+}
+
+#selection-overlay > * {
+    max-width: 100%;
+}
+
+#selection-title {
+    margin-top: clamp(0px, 1vh, 12px);
+    margin-bottom: clamp(1rem, 2vh, 2rem);
+}
+
+.audio-settings-panel {
+    width: min(92vw, 760px);
+    margin-top: 1rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid #2d3545;
+    border-radius: 12px;
+    background: rgba(22, 26, 34, 0.94);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+}
+
+.audio-settings-panel h3 {
+    color: #d4af37;
+    text-align: center;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: 1px;
+}
+
+.setting-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 190px) 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.setting-row label {
+    font-family: var(--font-system);
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.setting-row input[type="range"] {
+    width: 100%;
+    accent-color: #d4af37;
+}
+
+#mode-selection {
+    width: min(92vw, 760px);
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem !important;
+    margin-top: 1rem !important;
+}
+
+#mode-selection .menu-btn {
+    min-width: 220px;
+    flex: 1 1 220px;
+}
+
+#lobby-panel {
+    width: min(92vw, 760px) !important;
+    max-width: 760px;
+    padding: 1.25rem !important;
+    margin-top: 1rem !important;
+}
+
+#lobby-choices {
+    gap: 0.8rem !important;
+    flex-wrap: wrap;
+}
+
+#lobby-choices .lobby-action-btn {
+    flex: 1 1 180px;
+}
+
+#join-input-screen input,
+#join-input-screen button,
+#host-wait-screen,
+#match-ready-screen {
+    width: 100%;
+}
+
+#help-btn {
+    top: 12px;
+    left: 12px;
+    z-index: 40;
+}
+
+#mobile-controls {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 1024px) {
+    .char-container {
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .char-card {
+        width: min(42vw, 240px);
+    }
+
+    .char-card img {
+        width: min(30vw, 140px);
+        height: auto;
+        max-height: 240px;
+    }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+    #selection-overlay {
+        justify-content: flex-start;
+        padding-top: 10px;
+    }
+
+    #selection-title {
+        font-size: 1.8rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .char-container {
+        transform: none;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .char-card {
+        width: min(40vw, 220px);
+        padding: 0.9rem;
+    }
+
+    .char-card img {
+        width: auto;
+        height: 120px;
+    }
+
+    .audio-settings-panel {
+        width: min(96vw, 760px);
+        padding: 0.8rem 0.9rem;
+    }
+
+    .setting-row {
+        grid-template-columns: 1fr;
+        gap: 0.3rem;
+    }
+
+    #mode-selection .menu-btn,
+    #lobby-choices .lobby-action-btn {
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+    #selection-overlay {
+        justify-content: flex-start;
+        padding: 12px 10px 18px;
+    }
+
+    #selection-title {
+        font-size: 1.65rem;
+        letter-spacing: 2px;
+        margin-bottom: 0.7rem;
+    }
+
+    .char-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+        transform: none;
+    }
+
+    .char-card {
+        width: min(92vw, 340px);
+        padding: 1rem;
+    }
+
+    .char-card img {
+        width: min(36vw, 130px);
+        height: auto;
+        max-height: 180px;
+    }
+
+    .char-name {
+        font-size: 1.45rem;
+    }
+
+    .char-desc {
+        font-size: 0.8rem;
+    }
+
+    .audio-settings-panel {
+        width: 100%;
+        padding: 0.9rem;
+    }
+
+    .setting-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+    }
+
+    #mode-selection {
+        width: 100%;
+        gap: 0.75rem !important;
+    }
+
+    #mode-selection .menu-btn,
+    #lobby-choices .lobby-action-btn,
+    #lobby-panel button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #lobby-panel {
+        width: 100% !important;
+    }
+
+    #lobby-choices {
+        flex-direction: column;
+    }
+
+    #help-btn {
+        top: 8px;
+        left: 8px;
+        font-size: 0.72rem;
+        padding: 6px 12px;
+    }
+
+    #mobile-controls {
+        height: 140px;
+        padding: 0.5rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+        align-items: flex-end;
+    }
+
+    .dpad {
+        grid-template-columns: repeat(3, 44px);
+        grid-template-rows: repeat(3, 44px);
+    }
+
+    .btn-ctrl {
+        width: 44px;
+        height: 44px;
+        font-size: 1rem;
+    }
+
+    .action-buttons {
+        grid-template-columns: repeat(2, 50px);
+        grid-template-rows: repeat(2, 50px);
+        gap: 10px;
+    }
+
+    .btn-action {
+        width: 50px;
+        height: 50px;
+    }
+
+    .btn-action span {
+        font-size: 0.68rem;
+    }
+
+    .btn-action small {
+        font-size: 0.48rem;
+    }
+}
+
+@media (min-width: 769px) {
+    #selection-overlay {
+        align-items: center;
+    }
+
+    #mode-selection {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    #lobby-panel {
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
     </style>
 
     <script type="module">  
@@ -2190,28 +2486,50 @@ if (swirlImg && swirlImg.width > 0) {
         this.themeAudio = null;
         this.incendioAudio = null;
     }
+
+/**
+ * Tarayıcıya göre güvenli, mutlak ses yolu üretir.
+ */
+resolveAssetUrl(path) {
+    try {
+        return new URL(path, document.baseURI).href;
+    } catch (e) {
+        return path;
+    }
+}
+
+/**
+ * HTMLAudioElement oluşturup ortak ayarları uygular.
+ */
+createAudio(path, { loop = false, volume = 1, preload = 'auto' } = {}) {
+    const audio = new Audio(this.resolveAssetUrl(path));
+    audio.loop = loop;
+    audio.preload = preload;
+    audio.volume = volume;
+    audio.crossOrigin = 'anonymous';
+    return audio;
+}
  // Arayüzdeki slider değerlerini okuyup ses seviyelerini güncelleyen yeni fonksiyon:
-    updateVolumes() {
-        const musicVol = parseFloat(document.getElementById('vol-music')?.value ?? 0.30);
-        const sfxVol = parseFloat(document.getElementById('vol-sfx')?.value ?? 0.70);
-        const voiceVol = parseFloat(document.getElementById('vol-voice')?.value ?? 0.80);
+    
+updateVolumes() {
+    const musicVol = parseFloat(document.getElementById('vol-music')?.value ?? 0.30);
+    const sfxVol = parseFloat(document.getElementById('vol-sfx')?.value ?? 0.70);
+    const voiceVol = parseFloat(document.getElementById('vol-voice')?.value ?? 0.80);
 
-        this.musicVolume = musicVol;
-        this.sfxVolume = sfxVol;
-        this.voiceVolume = voiceVol;
+    this.musicVolume = musicVol;
+    this.sfxVolume = sfxVol;
+    this.voiceVolume = voiceVol;
 
-        // Arka plan müzik seviyesini güncelle
-        if (this.themeAudio) {
-            this.themeAudio.volume = this.musicVolume * 0.30; // Ölçeklendirilmiş varsayılan seviye
-        }
-        
-        // Aktif devam eden büyü seslerini (Incendio vb.) güncelle
-        if (this.incendioAudio) {
-            this.incendioAudio.volume = this.sfxVolume * 0.65;
-        }
+    if (this.themeAudio) {
+        this.themeAudio.volume = this.musicVolume;
     }
 
-    // ... (diğer metodlar)
+    if (this.incendioAudio) {
+        this.incendioAudio.volume = this.sfxVolume;
+    }
+}
+
+// ... (diğer metodlar)
     /**
      * Tarayıcı güvenlik politikası gereği, kullanıcının ekrana ilk dokunuşunda
      * ses motorunu uyandırır ve aktifleştirir.
@@ -2234,41 +2552,53 @@ if (swirlImg && swirlImg.width > 0) {
      * @param {string} path - Çalınacak .mp3 dosyasının yolu
      * @param {function} fallbackCallback - MP3 çalmazsa çalıştırılacak sentezleyici yedek fonksiyonu
      */
-    playSound(path, fallbackCallback) {
-        this.init();
-        const audio = new Audio(path);
-        
-        // Karakter çığlık sesi ("scream" içeren dosyalar) için ses tonunu ayarla
-        const isVoice = path.toLowerCase().includes('scream');
-        audio.volume = isVoice ? this.voiceVolume : this.sfxVolume;
+    
+playSound(path, fallbackCallback) {
+    this.init();
+    const isVoice = path.toLowerCase().includes('scream');
+    const audio = this.createAudio(path, {
+        loop: false,
+        volume: isVoice ? this.voiceVolume : this.sfxVolume
+    });
 
-        audio.play().catch(err => {
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(err => {
             console.warn(`[SES MOTORU] ${path} dosyası çalınamadı. Sentezleyici yedek devreye giriyor. Hata:`, err);
             if (fallbackCallback) {
                 fallbackCallback();
             }
         });
     }
+}
 
-    /**
-     * Madde 10: Ana menüde ve oyun içinde kesintisiz çalan tema müziğini başlatır.
-     */
-    playTheme() {
-        this.init();
-        if (!this.themeAudio) {
-            this.themeAudio = new Audio(this.soundPaths.mainTheme);
-            this.themeAudio.loop = true;
-            this.themeAudio.volume = 0.30; // Arka plan müziği için yumuşak %30 ses düzeyi
-        }
-        
-        this.themeAudio.play().catch(err => {
+/**
+ * Madde 10: Ana menüde ve oyun içinde kesintisiz çalan tema müziğini başlatır.
+ */
+playTheme() {
+    this.init();
+    if (!this.themeAudio) {
+        this.themeAudio = this.createAudio(this.soundPaths.mainTheme, {
+            loop: true,
+            volume: this.musicVolume
+        });
+    } else {
+        this.themeAudio.loop = true;
+        this.themeAudio.volume = this.musicVolume;
+    }
+
+    const playPromise = this.themeAudio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(err => {
             console.warn("[SES MOTORU] Tema müziği çalınamadı (Etkileşim bekleniyor):", err);
         });
     }
+}
 
-    /**
-     * Voldemort Protego kalkanı aktifleştiğinde çalınır.
-     */
+/**
+ * Voldemort Protego kalkanı aktifleştiğinde çalınır.
+ */
+
     playVoldemortProtego() {
         this.playSound(this.soundPaths.voldemortProtego, () => this.playShieldHit());
     }
@@ -2325,22 +2655,29 @@ if (swirlImg && swirlImg.width > 0) {
     /**
      * Madde 10: Morgan Incendio alev püskürtmesini kanalize ettiğinde döngüsel olarak başlatılır.
      */
-    startFlame() {
-        this.init();
-        if (this.incendioAudio) return; // Zaten çalıyorsa mükerrer başlatma
+    
+startFlame() {
+    this.init();
+    if (this.incendioAudio) return;
 
-        this.incendioAudio = new Audio(this.soundPaths.morganIncendio);
-        this.incendioAudio.loop = true;
-        this.incendioAudio.volume = 0.65;
-        this.incendioAudio.play().catch(err => {
+    this.incendioAudio = this.createAudio(this.soundPaths.morganIncendio, {
+        loop: true,
+        volume: this.sfxVolume
+    });
+
+    const playPromise = this.incendioAudio.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(err => {
             console.warn("[SES MOTORU] Incendio MP3 çalınamadı. Sentezleyici harlama sesi başlatılıyor.", err);
             this.startSyntheticFlame();
         });
     }
+}
 
-    /**
-     * Morgan Incendio alev püskürtmesini durdurduğunda çağrılır.
-     */
+/**
+ * Morgan Incendio alev püskürtmesini durdurduğunda çağrılır.
+ */
+
     stopFlame() {
         if (this.incendioAudio) {
             try {
